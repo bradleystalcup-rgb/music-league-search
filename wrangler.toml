@@ -1,6 +1,7 @@
-name = "musicleague-website"
+name = "music-league-search"
 main = "src/worker.js"
 compatibility_date = "2024-09-23"
+workers_dev = false
 
 # Static files in public/ are served automatically ahead of the Worker for
 # any request that matches a file (styles.css, vendor/*, favicon, etc.);
@@ -9,9 +10,7 @@ compatibility_date = "2024-09-23"
 directory = "public"
 binding = "ASSETS"
 
-# Created by `wrangler d1 create musicleague-db` — paste the resulting
-# database_id below. See README.md for the full setup walkthrough.
 [[d1_databases]]
 binding = "DB"
 database_name = "musicleague-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "a93a87f3-a4f9-4037-a60c-86418c390a46"
