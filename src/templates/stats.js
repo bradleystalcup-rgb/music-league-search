@@ -77,6 +77,12 @@ ${leagueStandingsSection(leagueStandings)}
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-words-per-comment"></canvas></div></div>
 </section>
 
+<section class="chart-section">
+  <h3>Votes without comments</h3>
+  <p class="lede">How many of a person's votes were cast silently, with no comment attached.</p>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-silent-votes"></canvas></div></div>
+</section>
+
 <h2 class="stats-group-title">Other stats</h2>
 
 <section class="chart-section">
@@ -148,6 +154,9 @@ ${repeatSongsSection(repeatSongs)}
 
   const perCommentData = ${escapeScript(JSON.stringify(commentVerbosity.perComment))};
   horizontalBar('chart-words-per-comment', perCommentData.map((d) => d.name), perCommentData.map((d) => d.words_per_comment), '#8f5c85', { decimals: 1 });
+
+  const silentData = ${escapeScript(JSON.stringify(commentVerbosity.silent))};
+  horizontalBar('chart-silent-votes', silentData.map((d) => d.name), silentData.map((d) => d.silent_votes), '#8f5c85');
 
   const artistData = ${escapeScript(JSON.stringify(topArtists))};
   horizontalBar('chart-artists', artistData.map((d) => d.artist), artistData.map((d) => d.submission_count), '#5c86a3');

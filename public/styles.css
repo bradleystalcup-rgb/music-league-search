@@ -283,7 +283,9 @@ h1, h2, h3 {
 }
 
 .chart-wrap .card-body {
-  height: 320px;
+  /* Tall enough for every person to get a legible bar now that the
+     leaderboards aren't cut down to a top-10. */
+  height: 480px;
 }
 
 /* Repeat songs (stats page) */

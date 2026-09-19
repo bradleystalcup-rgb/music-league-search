@@ -201,21 +201,30 @@ export async function getStats(db) {
 // trimmed string (collapsing runs of whitespace to single spaces first).
 const WORD_COUNT_SQL = `(LENGTH(comment) - LENGTH(REPLACE(comment, ' ', '')) + 1)`;
 
-export async function getPointsLeaderboard(db, { limit = 10 } = {}) {
+// "[DELETED]" is Music League's own placeholder for a competitor whose
+// account no longer exists — excluded from every person-ranking so it
+// doesn't show up as a fake leaderboard entry. Every other real person is
+// included, with no top-N cutoff.
+const EXCLUDE_DELETED = `u.name <> '[DELETED]'`;
+
+export async function getPointsLeaderboard(db) {
   const { results } = await db
     .prepare(
-      `SELECT u.name, u.slug, SUM(sub.vote_total) AS total_points
-       FROM submissions sub JOIN users u ON u.id = sub.submitter_id
-       GROUP BY u.id
-       ORDER BY total_points DESC
-       LIMIT ?`
+      `SELECT u.name, u.slug, COALESCE(p.total_points, 0) AS total_points
+       FROM users u
+       LEFT JOIN (
+         SELECT submitter_id AS uid, SUM(vote_total) AS total_points
+         FROM submissions
+         GROUP BY submitter_id
+       ) p ON p.uid = u.id
+       WHERE ${EXCLUDE_DELETED}
+       ORDER BY total_points DESC`
     )
-    .bind(limit)
     .all();
   return results;
 }
 
-export async function getWordCountLeaderboard(db, { limit = 10 } = {}) {
+export async function getWordCountLeaderboard(db) {
   const { results } = await db
     .prepare(
       `SELECT u.name, u.slug, COALESCE(sub_words.words, 0) + COALESCE(vote_words.words, 0) AS total_words
@@ -232,23 +241,22 @@ export async function getWordCountLeaderboard(db, { limit = 10 } = {}) {
          WHERE comment IS NOT NULL AND TRIM(comment) <> ''
          GROUP BY voter_id
        ) vote_words ON vote_words.uid = u.id
-       WHERE total_words > 0
-       ORDER BY total_words DESC
-       LIMIT ?`
+       WHERE total_words > 0 AND ${EXCLUDE_DELETED}
+       ORDER BY total_words DESC`
     )
-    .bind(limit)
     .all();
   return results;
 }
 
 // How wordy people are specifically about their votes (not submission
 // notes): words per vote cast (diluted by silent, comment-free votes —
-// measures overall chattiness) and words per comment actually written
+// measures overall chattiness), words per comment actually written
 // (measures how long they get *when* they bother — silence doesn't count
-// against them). Users with fewer than 5 comments are excluded from the
-// words-per-comment leaderboard so one long comment from an infrequent
-// voter can't top the list.
-export async function getCommentVerbosity(db, { limit = 10, minComments = 5 } = {}) {
+// against them), and how many votes they cast without ever leaving a
+// comment. Everyone who's cast at least one vote is included; the
+// words-per-comment ranking additionally requires 5+ comments so one long
+// comment from an infrequent voter can't top the list.
+export async function getCommentVerbosity(db, { minComments = 5 } = {}) {
   const { results } = await db
     .prepare(
       `SELECT
@@ -263,7 +271,7 @@ export async function getCommentVerbosity(db, { limit = 10, minComments = 5 } = 
          WHERE comment IS NOT NULL AND TRIM(comment) <> ''
          GROUP BY voter_id
        ) vw ON vw.uid = u.id
-       WHERE votes_cast > 0`
+       WHERE votes_cast > 0 AND ${EXCLUDE_DELETED}`
     )
     .all();
 
@@ -271,15 +279,14 @@ export async function getCommentVerbosity(db, { limit = 10, minComments = 5 } = 
     ...r,
     words_per_vote: r.votes_cast > 0 ? round1(r.total_words / r.votes_cast) : 0,
     words_per_comment: r.comments_cast > 0 ? round1(r.total_words / r.comments_cast) : 0,
+    silent_votes: r.votes_cast - r.comments_cast,
   }));
 
-  const perVote = [...withRates].sort((a, b) => b.words_per_vote - a.words_per_vote).slice(0, limit);
-  const perComment = withRates
-    .filter((r) => r.comments_cast >= minComments)
-    .sort((a, b) => b.words_per_comment - a.words_per_comment)
-    .slice(0, limit);
+  const perVote = [...withRates].sort((a, b) => b.words_per_vote - a.words_per_vote);
+  const perComment = withRates.filter((r) => r.comments_cast >= minComments).sort((a, b) => b.words_per_comment - a.words_per_comment);
+  const silent = [...withRates].sort((a, b) => b.silent_votes - a.silent_votes);
 
-  return { perVote, perComment };
+  return { perVote, perComment, silent };
 }
 
 function round1(n) {
@@ -309,18 +316,22 @@ export async function getWorstSongs(db, { limit = 10 } = {}) {
 // Rounds won per user (ties count as a win for everyone tied at the top),
 // across every league — same definition as the categories_won fun fact on
 // user pages, just ranked across all users instead of scoped to one.
-export async function getCategoryWinsLeaderboard(db, { limit = 10 } = {}) {
+// Left-joined from users (not submissions) so someone with zero wins still
+// shows up with a 0, rather than being silently absent from the chart.
+export async function getCategoryWinsLeaderboard(db) {
   const { results } = await db
     .prepare(
-      `SELECT u.name, u.slug, COUNT(DISTINCT sub.round_id) AS wins
-       FROM submissions sub
-       JOIN users u ON u.id = sub.submitter_id
-       WHERE sub.vote_total = (SELECT MAX(s2.vote_total) FROM submissions s2 WHERE s2.round_id = sub.round_id)
-       GROUP BY u.id
-       ORDER BY wins DESC
-       LIMIT ?`
+      `SELECT u.name, u.slug, COALESCE(w.wins, 0) AS wins
+       FROM users u
+       LEFT JOIN (
+         SELECT sub.submitter_id AS uid, COUNT(DISTINCT sub.round_id) AS wins
+         FROM submissions sub
+         WHERE sub.vote_total = (SELECT MAX(s2.vote_total) FROM submissions s2 WHERE s2.round_id = sub.round_id)
+         GROUP BY sub.submitter_id
+       ) w ON w.uid = u.id
+       WHERE ${EXCLUDE_DELETED}
+       ORDER BY wins DESC`
     )
-    .bind(limit)
     .all();
   return results;
 }
@@ -351,6 +362,7 @@ export async function getLeagueStandings(db) {
        FROM submissions sub
        JOIN rounds r ON r.id = sub.round_id
        JOIN users u ON u.id = sub.submitter_id
+       WHERE ${EXCLUDE_DELETED}
        GROUP BY r.league_id, u.id
        ORDER BY r.league_id, total_points DESC, u.name ASC`
     )
