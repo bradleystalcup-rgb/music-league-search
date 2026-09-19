@@ -44,7 +44,7 @@ export function submissionTable(submissions, { hide = [] } = {}) {
   </div>`;
 }
 
-function voteClass(total) {
+export function voteClass(total) {
   if (total > 0) return "text-bg-success";
   if (total < 0) return "text-bg-danger";
   return "text-bg-secondary";

@@ -12,6 +12,7 @@ import {
   getWordCountLeaderboard,
   getTopArtists,
   getTopSongs,
+  getRepeatSongs,
 } from "./db.js";
 import { homePage } from "./templates/home.js";
 import { searchPage } from "./templates/search.js";
@@ -48,14 +49,15 @@ export function createApp() {
   });
 
   app.get("/stats", async (c) => {
-    const [stats, pointsLeaders, wordLeaders, topArtists, topSongs] = await Promise.all([
+    const [stats, pointsLeaders, wordLeaders, topArtists, topSongs, repeatSongs] = await Promise.all([
       getStats(c.env.DB),
       getPointsLeaderboard(c.env.DB),
       getWordCountLeaderboard(c.env.DB),
       getTopArtists(c.env.DB),
       getTopSongs(c.env.DB),
+      getRepeatSongs(c.env.DB),
     ]);
-    return c.html(statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSongs }));
+    return c.html(statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSongs, repeatSongs }));
   });
 
   app.get("/league/:id", async (c) => {

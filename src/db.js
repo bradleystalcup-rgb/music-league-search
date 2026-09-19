@@ -264,3 +264,25 @@ export async function getTopArtists(db, { limit = 10 } = {}) {
     .all();
   return results;
 }
+
+// Songs submitted more than once, each with every occurrence in
+// chronological order (earliest submission first) so the "did it do
+// better the second time?" story reads left to right.
+export async function getRepeatSongs(db) {
+  const { results } = await db
+    .prepare(
+      `${SUBMISSION_SELECT}
+       WHERE song.id IN (SELECT song_id FROM submissions GROUP BY song_id HAVING COUNT(*) > 1)
+       ORDER BY song.title COLLATE NOCASE, song.artist COLLATE NOCASE, sub.created_at ASC`
+    )
+    .all();
+
+  const bySong = new Map();
+  for (const row of results) {
+    if (!bySong.has(row.song_id)) {
+      bySong.set(row.song_id, { title: row.title, artist: row.artist, artist_slug: row.artist_slug, occurrences: [] });
+    }
+    bySong.get(row.song_id).occurrences.push(row);
+  }
+  return [...bySong.values()];
+}

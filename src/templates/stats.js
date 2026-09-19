@@ -1,7 +1,7 @@
-import { layout } from "./layout.js";
-import { submissionTable } from "./submission-table.js";
+import { layout, escapeHtml } from "./layout.js";
+import { submissionTable, voteClass } from "./submission-table.js";
 
-export function statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSongs }) {
+export function statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSongs, repeatSongs }) {
   const statCards = [
     { label: "Leagues", value: stats.leagues },
     { label: "Categories", value: stats.rounds },
@@ -47,6 +47,8 @@ export function statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSo
   <p class="lede">Artists that show up again and again across every league.</p>
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-artists"></canvas></div></div>
 </section>
+
+${repeatSongsSection(repeatSongs)}
 
 <section>
   <h2>Top songs of all time</h2>
@@ -104,4 +106,44 @@ export function statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSo
 // inline <script> block when the JSON is embedded directly in the page.
 function escapeScript(json) {
   return json.replace(/</g, "\\u003c");
+}
+
+function repeatSongsSection(repeatSongs) {
+  if (!repeatSongs || repeatSongs.length === 0) return "";
+
+  const maxOccurrences = Math.max(...repeatSongs.map((s) => s.occurrences.length));
+  const occurrenceHeaders = Array.from({ length: maxOccurrences }, (_, i) => `<th>${ordinal(i + 1)}</th>`).join("");
+
+  const rows = repeatSongs
+    .map((song) => {
+      const cells = Array.from({ length: maxOccurrences }, (_, i) => {
+        const o = song.occurrences[i];
+        if (!o) return `<td></td>`;
+        return `<td><a class="repeat-occurrence" href="/category/${o.round_id}" title="${escapeHtml(o.league_name)} · ${escapeHtml(o.round_name)}">
+          <span class="badge rounded-pill ${voteClass(o.vote_total)}">${o.vote_total}</span>
+        </a></td>`;
+      }).join("");
+
+      return `<tr>
+        <td class="repeat-song-title">${escapeHtml(song.title)} <span class="muted">&mdash; <a href="/artist/${encodeURIComponent(song.artist_slug)}">${escapeHtml(song.artist)}</a></span></td>
+        ${cells}
+      </tr>`;
+    })
+    .join("");
+
+  return `<section class="chart-section">
+    <h2>Repeat songs</h2>
+    <p class="lede">Songs submitted more than once &mdash; vote total each time, earliest to latest, left to right.</p>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle submissions repeat-songs-table">
+        <thead><tr><th>Song</th>${occurrenceHeaders}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </section>`;
+}
+
+function ordinal(n) {
+  const suffixes = { 1: "st", 2: "nd", 3: "rd" };
+  return `${n}${suffixes[n] || "th"}`;
 }

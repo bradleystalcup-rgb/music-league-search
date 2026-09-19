@@ -275,6 +275,17 @@ h1, h2, h3 {
   height: 320px;
 }
 
+/* Repeat songs (stats page) */
+
+.repeat-songs-table .repeat-song-title {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.repeat-occurrence {
+  text-decoration: none;
+}
+
 /* League cards */
 
 .league-card {
