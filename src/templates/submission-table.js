@@ -30,7 +30,7 @@ export function submissionTable(submissions, { hide = [] } = {}) {
         submitter: s.user_slug
           ? `<a href="/user/${encodeURIComponent(s.user_slug)}">${escapeHtml(s.user_name)}</a>`
           : `<span class="muted">unknown</span>`,
-        votes: `<span class="vote-total ${voteClass(s.vote_total)}">${s.vote_total}</span>`,
+        votes: voteDetails(s),
       };
       return `<tr>${cols.map((c) => `<td data-label="${c.label}">${cells[c.key]}</td>`).join("")}</tr>`;
     })
@@ -48,6 +48,36 @@ function voteClass(total) {
   if (total > 0) return "vote-total--positive";
   if (total < 0) return "vote-total--negative";
   return "vote-total--zero";
+}
+
+// The vote pill is a <details>/<summary> so clicking it expands the
+// submitter's note plus each voter's points and comment — no client JS needed.
+function voteDetails(s) {
+  const pill = `<span class="vote-total ${voteClass(s.vote_total)}">${s.vote_total}</span>`;
+  const votes = s.votes || [];
+  const hasComments = Boolean(s.comment) || votes.some((v) => v.comment);
+  if (!hasComments && votes.length === 0) {
+    return pill;
+  }
+
+  const note = s.comment ? `<p class="submitter-note"><strong>${escapeHtml(s.user_name || "Submitter")}:</strong> ${escapeHtml(s.comment)}</p>` : "";
+
+  const voteItems = votes.length
+    ? `<ul class="vote-list">${votes
+        .map((v) => {
+          const voter = v.voter_slug
+            ? `<a href="/user/${encodeURIComponent(v.voter_slug)}">${escapeHtml(v.voter_name)}</a>`
+            : `<span class="muted">${escapeHtml(v.voter_name || "unknown")}</span>`;
+          const comment = v.comment ? ` &mdash; <span class="vote-comment">${escapeHtml(v.comment)}</span>` : "";
+          return `<li>${voter} <span class="vote-points">+${v.points}</span>${comment}</li>`;
+        })
+        .join("")}</ul>`
+    : `<p class="empty">No votes recorded.</p>`;
+
+  return `<details class="vote-details">
+    <summary>${pill}</summary>
+    <div class="vote-panel">${note}${voteItems}</div>
+  </details>`;
 }
 
 function spotifyId(uri) {

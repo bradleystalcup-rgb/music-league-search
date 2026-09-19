@@ -19,13 +19,16 @@ export function layout({ title, body }) {
 <header class="site-header">
   <div class="wrap site-header-inner">
     <a class="brand" href="/">🎵 Music League History</a>
+    <nav class="site-nav">
+      <a href="/stats">Stats</a>
+    </nav>
   </div>
 </header>
 <main class="wrap">
 ${body}
 </main>
 <footer class="site-footer">
-  <div class="wrap">Music League archive &middot; vote totals only, no ranking/comment history</div>
+  <div class="wrap">Music League archive &middot; click a vote total to see comments</div>
 </footer>
 </body>
 </html>`;

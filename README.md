@@ -6,16 +6,23 @@ submissions, votes).
 
 - Big search bar on the homepage — fuzzy-ish match on song title / artist,
   shows every submission of a match with its category (round) and vote total.
+  Click a vote total to expand the submitter's note and each voter's points
+  + comment.
 - `/artist/:slug` — every song submitted by an artist.
-- `/user/:slug` — every submission by a user, across all leagues.
+- `/user/:slug` — every submission by a user, across all leagues, with
+  fun-fact stat cards (submissions, categories won including ties, leagues
+  played).
 - `/category/:id` — a round's submissions, ordered by vote total (highest first).
-
-Vote totals only — voter identity and comments from the export are ignored.
+- `/stats` — archive-wide headline numbers plus a few leaderboards (points
+  earned, word count, most-submitted artists) and a top-songs table,
+  charted with [Chart.js](https://www.chartjs.org).
 
 ## Stack
 
 Cloudflare Pages + Functions ([Hono](https://hono.dev)) + D1 (SQLite), same
-pattern as the `paul-kortepeter-website` project.
+pattern as the `paul-kortepeter-website` project. No JS bundler — Open Props
+and Chart.js are vendored as static files into `public/vendor/` via
+`npm run sync:vendor` (see `scripts/sync-vendor.mjs`).
 
 ## Local setup
 
@@ -39,16 +46,20 @@ npm run db:seed:remote   # re-applies it to production
 ```
 
 `build:seed` fully replaces the seeded tables each time (it's not additive),
-so it's safe to re-run after editing raw CSVs. League names are
-auto-generated as "League N (Month Year)"; rename them by editing the
-`leagues` table directly (`UPDATE leagues SET name = ... WHERE id = ...`) or
-tweaking `seed/build-seed.mjs`.
+so it's safe to re-run after editing raw CSVs. It emits batched multi-row
+`INSERT`s rather than one statement per row — `wrangler d1 execute` sends
+each statement as its own request, so with ~900 submissions and ~6,000
+votes, one-statement-per-row made local seeding painfully slow. League
+names are auto-generated as "League N (Month Year)"; rename them by editing
+the `leagues` table directly (`UPDATE leagues SET name = ... WHERE id = ...`)
+or tweaking `seed/build-seed.mjs`.
 
 ## First deploy
 
 1. `wrangler d1 create musicleague-db` and paste the returned `database_id`
    into `wrangler.toml`.
-2. `npm run db:migrate:remote`
+2. `npm run db:migrate:remote` (applies both `migrations/0001_init.sql` and
+   `migrations/0002_add_votes.sql`)
 3. `npm run db:seed:remote`
 4. `npm run deploy` (or connect the repo in the Cloudflare Pages dashboard
    for git-based deploys), then point `musicleague.bradstalcup.com` at the

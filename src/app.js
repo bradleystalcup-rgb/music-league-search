@@ -1,11 +1,23 @@
 import { Hono } from "hono";
 
-import { searchSubmissions, getArtistBySlug, getUserBySlug, getRoundById, listLeaguesWithRounds, getStats } from "./db.js";
+import {
+  searchSubmissions,
+  getArtistBySlug,
+  getUserBySlug,
+  getRoundById,
+  listLeaguesWithRounds,
+  getStats,
+  getPointsLeaderboard,
+  getWordCountLeaderboard,
+  getTopArtists,
+  getTopSongs,
+} from "./db.js";
 import { homePage } from "./templates/home.js";
 import { searchPage } from "./templates/search.js";
 import { artistPage } from "./templates/artist.js";
 import { userPage } from "./templates/user.js";
 import { categoryPage } from "./templates/category.js";
+import { statsPage } from "./templates/stats.js";
 
 export function createApp() {
   const app = new Hono();
@@ -31,6 +43,17 @@ export function createApp() {
     const user = await getUserBySlug(c.env.DB, c.req.param("slug"));
     if (!user) return c.notFound();
     return c.html(userPage(user));
+  });
+
+  app.get("/stats", async (c) => {
+    const [stats, pointsLeaders, wordLeaders, topArtists, topSongs] = await Promise.all([
+      getStats(c.env.DB),
+      getPointsLeaderboard(c.env.DB),
+      getWordCountLeaderboard(c.env.DB),
+      getTopArtists(c.env.DB),
+      getTopSongs(c.env.DB),
+    ]);
+    return c.html(statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSongs }));
   });
 
   app.get("/category/:id", async (c) => {
