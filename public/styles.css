@@ -356,25 +356,27 @@ table.submissions a:hover {
   text-align: center;
 }
 
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-3);
+  box-shadow: var(--shadow-2);
+}
+
+.table-scroll table.submissions {
+  box-shadow: none;
+}
+
 @media (max-width: 640px) {
-  table.submissions thead { display: none; }
-  table.submissions, table.submissions tbody, table.submissions tr, table.submissions td {
-    display: block;
-    width: 100%;
+  table.submissions {
+    min-width: 560px;
   }
-  table.submissions tr {
-    border-bottom: 2px solid var(--line);
-    padding: var(--size-2) 0;
-  }
+  table.submissions th,
   table.submissions td {
-    border-bottom: none;
-    padding: var(--size-1) var(--size-3);
+    padding: var(--size-2) var(--size-2);
+    font-size: var(--font-size-0);
   }
-  table.submissions td::before {
-    content: attr(data-label);
-    display: block;
-    font-size: var(--font-size-00);
-    text-transform: uppercase;
-    color: var(--muted);
+  table.submissions th {
+    font-size: 0.65rem;
   }
 }

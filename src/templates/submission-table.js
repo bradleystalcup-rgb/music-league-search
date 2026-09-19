@@ -36,10 +36,12 @@ export function submissionTable(submissions, { hide = [] } = {}) {
     })
     .join("\n");
 
-  return `<table class="submissions">
-    <thead><tr>${cols.map((c) => `<th>${c.label}</th>`).join("")}</tr></thead>
-    <tbody>${rows}</tbody>
-  </table>`;
+  return `<div class="table-scroll">
+    <table class="submissions">
+      <thead><tr>${cols.map((c) => `<th>${c.label}</th>`).join("")}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
 }
 
 function voteClass(total) {
