@@ -241,6 +241,51 @@ export async function getWordCountLeaderboard(db, { limit = 10 } = {}) {
   return results;
 }
 
+// How wordy people are specifically about their votes (not submission
+// notes): words per vote cast (diluted by silent, comment-free votes —
+// measures overall chattiness) and words per comment actually written
+// (measures how long they get *when* they bother — silence doesn't count
+// against them). Users with fewer than 5 comments are excluded from the
+// words-per-comment leaderboard so one long comment from an infrequent
+// voter can't top the list.
+export async function getCommentVerbosity(db, { limit = 10, minComments = 5 } = {}) {
+  const { results } = await db
+    .prepare(
+      `SELECT
+         u.name, u.slug,
+         (SELECT COUNT(*) FROM votes v2 WHERE v2.voter_id = u.id) AS votes_cast,
+         COALESCE(vw.words, 0) AS total_words,
+         COALESCE(vw.comments, 0) AS comments_cast
+       FROM users u
+       LEFT JOIN (
+         SELECT voter_id AS uid, SUM(${WORD_COUNT_SQL}) AS words, COUNT(*) AS comments
+         FROM votes
+         WHERE comment IS NOT NULL AND TRIM(comment) <> ''
+         GROUP BY voter_id
+       ) vw ON vw.uid = u.id
+       WHERE votes_cast > 0`
+    )
+    .all();
+
+  const withRates = results.map((r) => ({
+    ...r,
+    words_per_vote: r.votes_cast > 0 ? round1(r.total_words / r.votes_cast) : 0,
+    words_per_comment: r.comments_cast > 0 ? round1(r.total_words / r.comments_cast) : 0,
+  }));
+
+  const perVote = [...withRates].sort((a, b) => b.words_per_vote - a.words_per_vote).slice(0, limit);
+  const perComment = withRates
+    .filter((r) => r.comments_cast >= minComments)
+    .sort((a, b) => b.words_per_comment - a.words_per_comment)
+    .slice(0, limit);
+
+  return { perVote, perComment };
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
 export async function getTopSongs(db, { limit = 10 } = {}) {
   const { results } = await db
     .prepare(

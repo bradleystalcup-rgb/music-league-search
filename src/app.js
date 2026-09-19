@@ -16,6 +16,7 @@ import {
   getCategoryWinsLeaderboard,
   getLeagueStandings,
   getRepeatSongs,
+  getCommentVerbosity,
 } from "./db.js";
 import { homePage } from "./templates/home.js";
 import { searchPage } from "./templates/search.js";
@@ -52,18 +53,29 @@ export function createApp() {
   });
 
   app.get("/stats", async (c) => {
-    const [stats, pointsLeaders, wordLeaders, categoryWinLeaders, topArtists, topSongs, worstSongs, leagueStandings, repeatSongs] =
-      await Promise.all([
-        getStats(c.env.DB),
-        getPointsLeaderboard(c.env.DB),
-        getWordCountLeaderboard(c.env.DB),
-        getCategoryWinsLeaderboard(c.env.DB),
-        getTopArtists(c.env.DB),
-        getTopSongs(c.env.DB),
-        getWorstSongs(c.env.DB),
-        getLeagueStandings(c.env.DB),
-        getRepeatSongs(c.env.DB),
-      ]);
+    const [
+      stats,
+      pointsLeaders,
+      wordLeaders,
+      categoryWinLeaders,
+      topArtists,
+      topSongs,
+      worstSongs,
+      leagueStandings,
+      repeatSongs,
+      commentVerbosity,
+    ] = await Promise.all([
+      getStats(c.env.DB),
+      getPointsLeaderboard(c.env.DB),
+      getWordCountLeaderboard(c.env.DB),
+      getCategoryWinsLeaderboard(c.env.DB),
+      getTopArtists(c.env.DB),
+      getTopSongs(c.env.DB),
+      getWorstSongs(c.env.DB),
+      getLeagueStandings(c.env.DB),
+      getRepeatSongs(c.env.DB),
+      getCommentVerbosity(c.env.DB),
+    ]);
     return c.html(
       statsPage({
         stats,
@@ -75,6 +87,7 @@ export function createApp() {
         worstSongs,
         leagueStandings,
         repeatSongs,
+        commentVerbosity,
       })
     );
   });

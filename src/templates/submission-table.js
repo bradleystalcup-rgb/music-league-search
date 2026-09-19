@@ -69,7 +69,8 @@ function voteDetails(s) {
             ? `<a href="/user/${encodeURIComponent(v.voter_slug)}">${escapeHtml(v.voter_name)}</a>`
             : `<span class="muted">${escapeHtml(v.voter_name || "unknown")}</span>`;
           const comment = v.comment ? ` &mdash; <span class="vote-comment">${escapeHtml(v.comment)}</span>` : "";
-          return `<li>${voter} <span class="vote-points">+${v.points}</span>${comment}</li>`;
+          const sign = v.points > 0 ? "+" : "";
+          return `<li>${voter} <span class="vote-points">${sign}${v.points}</span>${comment}</li>`;
         })
         .join("")}</ul>`
     : `<p class="empty">No votes recorded.</p>`;

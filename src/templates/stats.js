@@ -11,6 +11,7 @@ export function statsPage({
   worstSongs,
   leagueStandings,
   repeatSongs,
+  commentVerbosity,
 }) {
   const statCards = [
     { label: "Leagues", value: stats.leagues },
@@ -40,28 +41,46 @@ export function statsPage({
 </section>
 <div class="row row-cols-2 row-cols-md-3 g-3 stat-row">${statCards}</div>
 
+<h2 class="stats-group-title">Rankings</h2>
+
 ${leagueStandingsSection(leagueStandings)}
 
 <section class="chart-section">
-  <h2>Category wins</h2>
+  <h3>Category wins</h3>
   <p class="lede">Rounds won per person (ties count as a win for everyone tied at the top), across every league.</p>
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-wins"></canvas></div></div>
 </section>
 
 <section class="chart-section">
-  <h2>Most points earned (lifetime)</h2>
+  <h3>Most points earned (lifetime)</h3>
   <p class="lede">Total vote points a person's submissions have racked up, across every league.</p>
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-points"></canvas></div></div>
 </section>
 
+<h2 class="stats-group-title">Comments</h2>
+
 <section class="chart-section">
-  <h2>Most words written</h2>
+  <h3>Most words written</h3>
   <p class="lede">Combined word count of submission notes and vote comments &mdash; the archive's most prolific writers.</p>
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-words"></canvas></div></div>
 </section>
 
 <section class="chart-section">
-  <h2>Most submitted artists</h2>
+  <h3>Words per vote</h3>
+  <p class="lede">Vote-comment word count divided by every vote cast, including silent ones &mdash; overall chattiness while voting.</p>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-words-per-vote"></canvas></div></div>
+</section>
+
+<section class="chart-section">
+  <h3>Words per comment</h3>
+  <p class="lede">How long a person's vote comment runs, on average, when they actually leave one (5+ comments to qualify).</p>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-words-per-comment"></canvas></div></div>
+</section>
+
+<h2 class="stats-group-title">Other stats</h2>
+
+<section class="chart-section">
+  <h3>Most submitted artists</h3>
   <p class="lede">Artists that show up again and again across every league.</p>
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-artists"></canvas></div></div>
 </section>
@@ -69,12 +88,12 @@ ${leagueStandingsSection(leagueStandings)}
 ${repeatSongsSection(repeatSongs)}
 
 <section>
-  <h2>Top songs of all time</h2>
+  <h3>Top songs of all time</h3>
   ${submissionTable(topSongs)}
 </section>
 
 <section>
-  <h2>Rock bottom</h2>
+  <h3>Rock bottom</h3>
   <p class="lede">The lowest-scoring submissions in archive history.</p>
   ${submissionTable(worstSongs)}
 </section>
@@ -90,7 +109,7 @@ ${repeatSongsSection(repeatSongs)}
   Chart.defaults.color = muted;
   Chart.defaults.font.family = "Inter, system-ui, sans-serif";
 
-  function horizontalBar(canvasId, labels, data, color) {
+  function horizontalBar(canvasId, labels, data, color, { decimals = 0 } = {}) {
     const el = document.getElementById(canvasId);
     if (!el || labels.length === 0) return;
     new Chart(el, {
@@ -103,9 +122,12 @@ ${repeatSongsSection(repeatSongs)}
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => ctx.parsed.x.toFixed(decimals) } },
+        },
         scales: {
-          x: { beginAtZero: true, grid: { color: line }, ticks: { precision: 0 } },
+          x: { beginAtZero: true, grid: { color: line }, ticks: { precision: decimals } },
           y: { grid: { display: false }, ticks: { color: ink, font: { weight: '500' } } },
         },
       },
@@ -120,6 +142,12 @@ ${repeatSongsSection(repeatSongs)}
 
   const wordData = ${escapeScript(JSON.stringify(wordLeaders))};
   horizontalBar('chart-words', wordData.map((d) => d.name), wordData.map((d) => d.total_words), '#8f5c85');
+
+  const perVoteData = ${escapeScript(JSON.stringify(commentVerbosity.perVote))};
+  horizontalBar('chart-words-per-vote', perVoteData.map((d) => d.name), perVoteData.map((d) => d.words_per_vote), '#8f5c85', { decimals: 1 });
+
+  const perCommentData = ${escapeScript(JSON.stringify(commentVerbosity.perComment))};
+  horizontalBar('chart-words-per-comment', perCommentData.map((d) => d.name), perCommentData.map((d) => d.words_per_comment), '#8f5c85', { decimals: 1 });
 
   const artistData = ${escapeScript(JSON.stringify(topArtists))};
   horizontalBar('chart-artists', artistData.map((d) => d.artist), artistData.map((d) => d.submission_count), '#5c86a3');
@@ -151,7 +179,7 @@ function leagueStandingsSection(leagueStandings) {
     .join("");
 
   return `<section class="chart-section">
-    <h2>League champion history</h2>
+    <h3>League champion history</h3>
     <p class="lede">Standings by total points earned across each league's rounds. Last place only shown for leagues with more than three players.</p>
     <div class="table-responsive">
       <table class="table table-hover align-middle submissions">
@@ -191,7 +219,7 @@ function repeatSongsSection(repeatSongs) {
     .join("");
 
   return `<section class="chart-section">
-    <h2>Repeat songs</h2>
+    <h3>Repeat songs</h3>
     <p class="lede">Songs submitted more than once &mdash; vote total each time, earliest to latest, left to right.</p>
     <div class="table-responsive">
       <table class="table table-hover align-middle submissions repeat-songs-table">
