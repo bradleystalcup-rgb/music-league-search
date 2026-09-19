@@ -1,6 +1,13 @@
 name = "musicleague-website"
-pages_build_output_dir = "public"
+main = "src/worker.js"
 compatibility_date = "2024-09-23"
+
+# Static files in public/ are served automatically ahead of the Worker for
+# any request that matches a file (styles.css, vendor/*, favicon, etc.);
+# everything else falls through to the Hono app in src/worker.js.
+[assets]
+directory = "public"
+binding = "ASSETS"
 
 # Created by `wrangler d1 create musicleague-db` — paste the resulting
 # database_id below. See README.md for the full setup walkthrough.

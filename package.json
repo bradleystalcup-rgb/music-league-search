@@ -6,8 +6,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "wrangler pages dev public",
-    "deploy": "wrangler pages deploy public",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
     "build:seed": "node seed/build-seed.mjs",
     "sync:vendor": "node scripts/sync-vendor.mjs",
     "db:migrate:local": "wrangler d1 execute musicleague-db --local --file=migrations/0001_init.sql && wrangler d1 execute musicleague-db --local --file=migrations/0002_add_votes.sql",
@@ -21,6 +21,6 @@
   "devDependencies": {
     "chart.js": "^4.5.1",
     "open-props": "^1.7.23",
-    "wrangler": "^3.90.0"
+    "wrangler": "^4.42.1"
   }
 }

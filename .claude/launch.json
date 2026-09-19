@@ -5,7 +5,7 @@
       "name": "musicleague-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 8788
+      "port": 8787
     }
   ]
 }

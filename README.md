@@ -19,10 +19,21 @@ submissions, votes).
 
 ## Stack
 
-Cloudflare Pages + Functions ([Hono](https://hono.dev)) + D1 (SQLite), same
-pattern as the `paul-kortepeter-website` project. No JS bundler — Open Props
-and Chart.js are vendored as static files into `public/vendor/` via
-`npm run sync:vendor` (see `scripts/sync-vendor.mjs`).
+Cloudflare Workers with [Static Assets](https://developers.cloudflare.com/workers/static-assets/)
+([Hono](https://hono.dev)) + D1 (SQLite). `src/worker.js` is the Worker
+entrypoint (a plain Hono app — no Pages adapter needed); anything in
+`public/` that matches a request path is served directly, everything else
+falls through to the Worker. No JS bundler — Open Props and Chart.js are
+vendored as static files into `public/vendor/` via `npm run sync:vendor`
+(see `scripts/sync-vendor.mjs`).
+
+This used to be a Cloudflare Pages project. It was migrated to Workers +
+Static Assets because Cloudflare's dashboard now creates new git-connected
+projects as "Workers" resources (via the Workers Builds CI system) even
+when the code is Pages-shaped — and that CI's auto-provisioned deploy
+token is scoped to Workers only, so a Pages-style deploy command fails
+with a Pages API auth error no matter what. Matching the code to what the
+dashboard actually provisions was simpler than fighting it.
 
 ## Local setup
 
@@ -61,6 +72,9 @@ or tweaking `seed/build-seed.mjs`.
 2. `npm run db:migrate:remote` (applies both `migrations/0001_init.sql` and
    `migrations/0002_add_votes.sql`)
 3. `npm run db:seed:remote`
-4. `npm run deploy` (or connect the repo in the Cloudflare Pages dashboard
-   for git-based deploys), then point `musicleague.bradstalcup.com` at the
-   Pages project via a CNAME/Cloudflare DNS record.
+4. `npm run deploy`, or connect the repo in the Cloudflare dashboard
+   (**Workers & Pages → Create application → Connect to Git**) for
+   git-based deploys — its default build is `npm install` +
+   `npx wrangler deploy`, which matches this repo's `wrangler.toml` as-is.
+   Then add a custom domain (`musicleague.bradstalcup.com`) to the Worker
+   under its **Settings → Domains & Routes**.
