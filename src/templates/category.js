@@ -9,5 +9,5 @@ export function categoryPage({ round, submissions }) {
 ${round.playlist_url ? `<p><a href="${escapeHtml(round.playlist_url)}" target="_blank" rel="noopener">Open playlist on Spotify &rarr;</a></p>` : ""}
 ${submissionTable(submissions, { hide: ["category", "league"] })}`;
 
-  return layout({ title: `${round.name} — Music League History`, body });
+  return layout({ title: `${round.name} — Friends in the Bend Music League`, body });
 }

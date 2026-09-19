@@ -10,7 +10,16 @@ export function statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSo
     { label: "Unique artists", value: stats.artists },
     { label: "Votes cast", value: stats.votes_cast },
   ]
-    .map((s) => `<div class="stat-card"><div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div></div>`)
+    .map(
+      (s) => `<div class="col">
+        <div class="card stat-card text-center h-100">
+          <div class="card-body">
+            <div class="stat-value">${s.value}</div>
+            <div class="stat-label">${s.label}</div>
+          </div>
+        </div>
+      </div>`
+    )
     .join("");
 
   const body = `
@@ -19,24 +28,24 @@ export function statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSo
   <h1>Archive stats</h1>
   <p class="lede">Fun numbers from every league so far.</p>
 </section>
-<div class="stat-row">${statCards}</div>
+<div class="row row-cols-2 row-cols-md-3 g-3 stat-row">${statCards}</div>
 
 <section class="chart-section">
   <h2>Most points earned (lifetime)</h2>
   <p class="lede">Total vote points a person's submissions have racked up, across every league.</p>
-  <div class="chart-wrap"><canvas id="chart-points"></canvas></div>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-points"></canvas></div></div>
 </section>
 
 <section class="chart-section">
   <h2>Most words written</h2>
   <p class="lede">Combined word count of submission notes and vote comments &mdash; the archive's most prolific writers.</p>
-  <div class="chart-wrap"><canvas id="chart-words"></canvas></div>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-words"></canvas></div></div>
 </section>
 
 <section class="chart-section">
   <h2>Most submitted artists</h2>
   <p class="lede">Artists that show up again and again across every league.</p>
-  <div class="chart-wrap"><canvas id="chart-artists"></canvas></div>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-artists"></canvas></div></div>
 </section>
 
 <section>
@@ -88,7 +97,7 @@ export function statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSo
 })();
 </script>`;
 
-  return layout({ title: "Archive Stats — Music League History", body });
+  return layout({ title: "Archive Stats — Friends in the Bend Music League", body });
 }
 
 // Prevents a title/name containing "</script>" from breaking out of the

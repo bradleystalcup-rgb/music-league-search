@@ -7,14 +7,23 @@ export function userPage({ name, facts, submissions }) {
     { label: "Categories won", value: facts.categories_won },
     { label: "Leagues played", value: facts.total_leagues },
   ]
-    .map((s) => `<div class="stat-card"><div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div></div>`)
+    .map(
+      (s) => `<div class="col">
+        <div class="card stat-card text-center h-100">
+          <div class="card-body">
+            <div class="stat-value">${s.value}</div>
+            <div class="stat-label">${s.label}</div>
+          </div>
+        </div>
+      </div>`
+    )
     .join("");
 
   const body = `
 <p class="breadcrumb"><a href="/">&larr; back to search</a></p>
 <h1>${escapeHtml(name)}</h1>
-<div class="stat-row">${statCards}</div>
+<div class="row row-cols-3 g-3 stat-row">${statCards}</div>
 ${submissionTable(submissions, { hide: ["submitter"] })}`;
 
-  return layout({ title: `${name} — Music League History`, body });
+  return layout({ title: `${name} — Friends in the Bend Music League`, body });
 }

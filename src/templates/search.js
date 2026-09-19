@@ -15,5 +15,5 @@ ${
     : ""
 }`;
 
-  return layout({ title: query ? `“${query}” — Music League History` : "Search — Music League History", body });
+  return layout({ title: query ? `“${query}” — Friends in the Bend Music League` : "Search — Friends in the Bend Music League", body });
 }

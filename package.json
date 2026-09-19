@@ -19,6 +19,7 @@
     "hono": "^4.6.14"
   },
   "devDependencies": {
+    "bootstrap": "^5.3.8",
     "chart.js": "^4.5.1",
     "open-props": "^1.7.23",
     "wrangler": "^4.42.1"

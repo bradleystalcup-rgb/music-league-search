@@ -11,14 +11,26 @@ const ROOT = join(__dirname, "..");
 
 const TARGETS = [
   {
+    // Just the design tokens (spacing/shadow/radius/font-size scales) —
+    // Bootstrap's Reboot replaces Open Props' normalize.min.css, and we
+    // don't use the extended color ramps.
     src: join(ROOT, "node_modules", "open-props"),
     dest: join(ROOT, "public", "vendor", "open-props"),
-    files: ["open-props.min.css", "normalize.min.css", "green.min.css", "blue.min.css", "purple.min.css"],
+    files: ["open-props.min.css"],
   },
   {
     src: join(ROOT, "node_modules", "chart.js", "dist"),
     dest: join(ROOT, "public", "vendor", "chartjs"),
     files: ["chart.umd.min.js"],
+  },
+  {
+    // Bootstrap's flexbox-based grid (row/col) for page layout — Firefox
+    // and Chromium disagree on sizing for CSS Grid's auto-fit/fr tracks in
+    // some cases (see the league-card grid bug), and Bootstrap's grid is
+    // flexbox-based, sidestepping that class of bug entirely.
+    src: join(ROOT, "node_modules", "bootstrap", "dist", "css"),
+    dest: join(ROOT, "public", "vendor", "bootstrap"),
+    files: ["bootstrap.min.css"],
   },
 ];
 

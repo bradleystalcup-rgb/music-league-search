@@ -36,8 +36,8 @@ export function submissionTable(submissions, { hide = [] } = {}) {
     })
     .join("\n");
 
-  return `<div class="table-scroll">
-    <table class="submissions">
+  return `<div class="table-responsive">
+    <table class="table table-hover align-middle submissions">
       <thead><tr>${cols.map((c) => `<th>${c.label}</th>`).join("")}</tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -45,15 +45,15 @@ export function submissionTable(submissions, { hide = [] } = {}) {
 }
 
 function voteClass(total) {
-  if (total > 0) return "vote-total--positive";
-  if (total < 0) return "vote-total--negative";
-  return "vote-total--zero";
+  if (total > 0) return "text-bg-success";
+  if (total < 0) return "text-bg-danger";
+  return "text-bg-secondary";
 }
 
 // The vote pill is a <details>/<summary> so clicking it expands the
 // submitter's note plus each voter's points and comment — no client JS needed.
 function voteDetails(s) {
-  const pill = `<span class="vote-total ${voteClass(s.vote_total)}">${s.vote_total}</span>`;
+  const pill = `<span class="badge rounded-pill vote-total ${voteClass(s.vote_total)}">${s.vote_total}</span>`;
   const votes = s.votes || [];
   const hasComments = Boolean(s.comment) || votes.some((v) => v.comment);
   if (!hasComments && votes.length === 0) {

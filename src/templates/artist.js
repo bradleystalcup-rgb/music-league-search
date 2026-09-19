@@ -8,5 +8,5 @@ export function artistPage({ name, submissions }) {
 <p class="lede">${submissions.length} submission${submissions.length === 1 ? "" : "s"}</p>
 ${submissionTable(submissions, { hide: ["artist"] })}`;
 
-  return layout({ title: `${name} — Music League History`, body });
+  return layout({ title: `${name} — Friends in the Bend Music League`, body });
 }

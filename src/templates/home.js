@@ -3,12 +3,16 @@ import { layout, searchBar } from "./layout.js";
 export function homePage({ stats, leagues }) {
   const leagueCards = leagues
     .map(
-      (l) => `<li class="league-card">
-        <h3>${l.name}</h3>
-        <div class="chip-row">
-          ${l.rounds.map((r) => `<a class="chip" href="/category/${r.id}">${r.name}</a>`).join("")}
+      (l) => `<div class="col league-col">
+        <div class="card league-card h-100">
+          <div class="card-body">
+            <h3 class="card-title h5">${l.name}</h3>
+            <div class="chip-row">
+              ${l.rounds.map((r) => `<a class="chip" href="/category/${r.id}">${r.name}</a>`).join("")}
+            </div>
+          </div>
         </div>
-      </li>`
+      </div>`
     )
     .join("\n");
 
@@ -20,10 +24,10 @@ export function homePage({ stats, leagues }) {
 </section>
 <section class="leagues">
   <h2>Leagues</h2>
-  <ul class="league-list">
+  <div class="row row-cols-1 row-cols-md-2 g-3">
     ${leagueCards}
-  </ul>
+  </div>
 </section>`;
 
-  return layout({ title: "Music League History", body });
+  return layout({ title: "Friends in the Bend Music League", body });
 }
