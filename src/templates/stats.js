@@ -12,6 +12,9 @@ export function statsPage({
   leagueStandings,
   repeatSongs,
   commentVerbosity,
+  playerRatings,
+  votesForfeited,
+  correctGuesses,
 }) {
   const statCards = [
     { label: "Leagues", value: stats.leagues },
@@ -57,6 +60,12 @@ ${leagueStandingsSection(leagueStandings)}
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-points"></canvas></div></div>
 </section>
 
+<section class="chart-section">
+  <h3>Player rating</h3>
+  <p class="lede">Average share of each league's total points earned, across every league played, rescaled 0&ndash;100 so the top player sits at 100.</p>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-rating"></canvas></div></div>
+</section>
+
 <h2 class="stats-group-title">Comments</h2>
 
 <section class="chart-section">
@@ -83,7 +92,19 @@ ${leagueStandingsSection(leagueStandings)}
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-silent-votes"></canvas></div></div>
 </section>
 
+<section class="chart-section">
+  <h3>Correct guesses</h3>
+  <p class="lede">A vote comment that names the actual submitter counts as calling it. Approximate &mdash; stylized usernames people don't spell out mid-sentence will undercount.</p>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-guesses"></canvas></div></div>
+</section>
+
 <h2 class="stats-group-title">Other stats</h2>
+
+<section class="chart-section">
+  <h3>Votes forfeited</h3>
+  <p class="lede">Rounds where someone was in the league but cast zero votes &mdash; a full no-show that also means whoever they'd have voted for missed out on those points.</p>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-forfeited"></canvas></div></div>
+</section>
 
 <section class="chart-section">
   <h3>Most submitted artists</h3>
@@ -115,7 +136,7 @@ ${repeatSongsSection(repeatSongs)}
   Chart.defaults.color = muted;
   Chart.defaults.font.family = "Inter, system-ui, sans-serif";
 
-  function horizontalBar(canvasId, labels, data, color, { decimals = 0 } = {}) {
+  function horizontalBar(canvasId, labels, data, color, { decimals = 0, extra = null, extraLabel = '' } = {}) {
     const el = document.getElementById(canvasId);
     if (!el || labels.length === 0) return;
     new Chart(el, {
@@ -130,7 +151,15 @@ ${repeatSongsSection(repeatSongs)}
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: (ctx) => ctx.parsed.x.toFixed(decimals) } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const value = ctx.parsed.x.toFixed(decimals);
+                if (!extra) return value;
+                return \`\${value} (\${extra[ctx.dataIndex].toFixed(1)}\${extraLabel})\`;
+              },
+            },
+          },
         },
         scales: {
           x: { beginAtZero: true, grid: { color: line }, ticks: { precision: decimals } },
@@ -146,6 +175,13 @@ ${repeatSongsSection(repeatSongs)}
   const pointsData = ${escapeScript(JSON.stringify(pointsLeaders))};
   horizontalBar('chart-points', pointsData.map((d) => d.name), pointsData.map((d) => d.total_points), '#5c7f49');
 
+  const ratingData = ${escapeScript(JSON.stringify(playerRatings))};
+  horizontalBar('chart-rating', ratingData.map((d) => d.name), ratingData.map((d) => d.rating), '#5c7f49', {
+    decimals: 1,
+    extra: ratingData.map((d) => d.raw_rating),
+    extraLabel: '% avg share of league points',
+  });
+
   const wordData = ${escapeScript(JSON.stringify(wordLeaders))};
   horizontalBar('chart-words', wordData.map((d) => d.name), wordData.map((d) => d.total_words), '#8f5c85');
 
@@ -157,6 +193,12 @@ ${repeatSongsSection(repeatSongs)}
 
   const silentData = ${escapeScript(JSON.stringify(commentVerbosity.silent))};
   horizontalBar('chart-silent-votes', silentData.map((d) => d.name), silentData.map((d) => d.silent_votes), '#8f5c85');
+
+  const guessesData = ${escapeScript(JSON.stringify(correctGuesses))};
+  horizontalBar('chart-guesses', guessesData.map((d) => d.name), guessesData.map((d) => d.correct_guesses), '#8f5c85');
+
+  const forfeitedData = ${escapeScript(JSON.stringify(votesForfeited))};
+  horizontalBar('chart-forfeited', forfeitedData.map((d) => d.name), forfeitedData.map((d) => d.forfeited_rounds), '#5c86a3');
 
   const artistData = ${escapeScript(JSON.stringify(topArtists))};
   horizontalBar('chart-artists', artistData.map((d) => d.artist), artistData.map((d) => d.submission_count), '#5c86a3');

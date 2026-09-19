@@ -17,6 +17,9 @@ import {
   getLeagueStandings,
   getRepeatSongs,
   getCommentVerbosity,
+  getPlayerRatings,
+  getVotesForfeited,
+  getCorrectGuesses,
 } from "./db.js";
 import { homePage } from "./templates/home.js";
 import { searchPage } from "./templates/search.js";
@@ -64,6 +67,9 @@ export function createApp() {
       leagueStandings,
       repeatSongs,
       commentVerbosity,
+      playerRatings,
+      votesForfeited,
+      correctGuesses,
     ] = await Promise.all([
       getStats(c.env.DB),
       getPointsLeaderboard(c.env.DB),
@@ -75,6 +81,9 @@ export function createApp() {
       getLeagueStandings(c.env.DB),
       getRepeatSongs(c.env.DB),
       getCommentVerbosity(c.env.DB),
+      getPlayerRatings(c.env.DB),
+      getVotesForfeited(c.env.DB),
+      getCorrectGuesses(c.env.DB),
     ]);
     return c.html(
       statsPage({
@@ -88,6 +97,9 @@ export function createApp() {
         leagueStandings,
         repeatSongs,
         commentVerbosity,
+        playerRatings,
+        votesForfeited,
+        correctGuesses,
       })
     );
   });

@@ -386,6 +386,118 @@ export async function getLeagueStandings(db) {
   });
 }
 
+// A 0-100 rating: for each league someone plays in, what share of that
+// league's total points did they personally earn (their points / everyone's
+// points in that league, as a percentage)? Average that share across every
+// league they're in, then rescale so the single highest average becomes
+// exactly 100 and everyone else is proportional to it.
+export async function getPlayerRatings(db) {
+  const { results } = await db
+    .prepare(
+      `SELECT r.league_id, u.id AS user_id, u.name, u.slug,
+              SUM(sub.vote_total) AS user_points,
+              SUM(SUM(sub.vote_total)) OVER (PARTITION BY r.league_id) AS league_points
+       FROM submissions sub
+       JOIN rounds r ON r.id = sub.round_id
+       JOIN users u ON u.id = sub.submitter_id
+       WHERE ${EXCLUDE_DELETED}
+       GROUP BY r.league_id, u.id`
+    )
+    .all();
+
+  const sharesByUser = new Map();
+  for (const row of results) {
+    if (row.league_points === 0) continue; // no points awarded in this league at all — no share to speak of
+    const share = (row.user_points / row.league_points) * 100;
+    if (!sharesByUser.has(row.user_id)) sharesByUser.set(row.user_id, { name: row.name, slug: row.slug, shares: [] });
+    sharesByUser.get(row.user_id).shares.push(share);
+  }
+
+  const raw = [...sharesByUser.values()].map((u) => ({
+    name: u.name,
+    slug: u.slug,
+    raw_rating: u.shares.reduce((sum, s) => sum + s, 0) / u.shares.length,
+  }));
+
+  const maxRaw = Math.max(...raw.map((u) => u.raw_rating));
+  return raw
+    .map((u) => ({ ...u, rating: maxRaw > 0 ? round1((u.raw_rating / maxRaw) * 100) : 0 }))
+    .sort((a, b) => b.rating - a.rating);
+}
+
+// Rounds where someone was a member of that round's league (per the
+// original competitors.csv roster, not just "ever submitted or voted") but
+// cast zero votes — a full no-show, which also means whoever they'd have
+// voted for never received those points. Grouped across every round a
+// member was eligible for, so a fully-engaged member still shows up as a
+// legitimate 0 rather than being absent.
+export async function getVotesForfeited(db) {
+  const { results } = await db
+    .prepare(
+      `SELECT
+         u.name, u.slug,
+         COUNT(*) AS eligible_rounds,
+         SUM(
+           CASE WHEN NOT EXISTS (
+             SELECT 1 FROM votes v
+             JOIN submissions sub ON sub.id = v.submission_id
+             WHERE v.voter_id = lm.user_id AND sub.round_id = r.id
+           ) THEN 1 ELSE 0 END
+         ) AS forfeited_rounds
+       FROM league_members lm
+       JOIN rounds r ON r.league_id = lm.league_id
+       JOIN users u ON u.id = lm.user_id
+       WHERE ${EXCLUDE_DELETED}
+       GROUP BY lm.user_id
+       ORDER BY forfeited_rounds DESC`
+    )
+    .all();
+  return results;
+}
+
+// "Correct guesses": a vote comment that mentions the actual submitter's
+// name (or, for a two-word name, just their first name) counts as
+// correctly guessing whose pick it was — Music League submissions are
+// anonymous until the round ends, so this is a decent proxy for "called
+// it". Necessarily approximate: stylized usernames people don't spell out
+// mid-sentence (e.g. "SamRobertsND") will undercount.
+export async function getCorrectGuesses(db) {
+  const { results: allUsers } = await db.prepare(`SELECT u.name, u.slug FROM users u WHERE ${EXCLUDE_DELETED}`).all();
+
+  const { results: candidates } = await db
+    .prepare(
+      `SELECT v.comment, u_voter.name AS voter_name, u_voter.slug AS voter_slug, u_sub.name AS submitter_name
+       FROM votes v
+       JOIN submissions sub ON sub.id = v.submission_id
+       JOIN users u_sub ON u_sub.id = sub.submitter_id
+       JOIN users u_voter ON u_voter.id = v.voter_id
+       WHERE v.comment IS NOT NULL AND TRIM(v.comment) <> ''
+         AND u_sub.id <> u_voter.id
+         AND u_sub.name <> '[DELETED]' AND u_voter.name <> '[DELETED]'`
+    )
+    .all();
+
+  const guessesBySlug = new Map(allUsers.map((u) => [u.slug, { name: u.name, slug: u.slug, correct_guesses: 0 }]));
+  for (const row of candidates) {
+    if (nameMentioned(row.comment, row.submitter_name)) {
+      guessesBySlug.get(row.voter_slug).correct_guesses += 1;
+    }
+  }
+
+  return [...guessesBySlug.values()].sort((a, b) => b.correct_guesses - a.correct_guesses);
+}
+
+function nameMentioned(text, fullName) {
+  const candidates = [fullName];
+  const firstWord = fullName.split(/\s+/)[0];
+  if (firstWord !== fullName && firstWord.length >= 3) candidates.push(firstWord);
+
+  return candidates.some((name) => {
+    const pattern = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`\\b${pattern}\\b`, "i").test(text);
+  });
+}
+
 // Songs submitted more than once, each with every occurrence in
 // chronological order (earliest submission first) so the "did it do
 // better the second time?" story reads left to right.
