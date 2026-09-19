@@ -13,6 +13,8 @@ export function statsPage({
   repeatSongs,
   commentVerbosity,
   playerRatings,
+  categoryRatings,
+  roundsMissed,
   votesForfeited,
   correctGuesses,
 }) {
@@ -66,6 +68,12 @@ ${leagueStandingsSection(leagueStandings)}
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-rating"></canvas></div></div>
 </section>
 
+<section class="chart-section">
+  <h3>Player rating (category)</h3>
+  <p class="lede">Same idea, but for category wins: average share of each league's rounds won, across every league played, rescaled 0&ndash;100 so the top player sits at 100.</p>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-rating-category"></canvas></div></div>
+</section>
+
 <h2 class="stats-group-title">Comments</h2>
 
 <section class="chart-section">
@@ -101,8 +109,14 @@ ${leagueStandingsSection(leagueStandings)}
 <h2 class="stats-group-title">Other stats</h2>
 
 <section class="chart-section">
+  <h3>Rounds missed</h3>
+  <p class="lede">Rounds where someone was in the league but cast zero votes &mdash; a full no-show.</p>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-rounds-missed"></canvas></div></div>
+</section>
+
+<section class="chart-section">
   <h3>Votes forfeited</h3>
-  <p class="lede">Rounds where someone was in the league but cast zero votes &mdash; a full no-show that also means whoever they'd have voted for missed out on those points.</p>
+  <p class="lede">Points a person's own submission earned in a round where they themselves cast zero votes &mdash; taking votes without reciprocating.</p>
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-forfeited"></canvas></div></div>
 </section>
 
@@ -182,6 +196,13 @@ ${repeatSongsSection(repeatSongs)}
     extraLabel: '% avg share of league points',
   });
 
+  const categoryRatingData = ${escapeScript(JSON.stringify(categoryRatings))};
+  horizontalBar('chart-rating-category', categoryRatingData.map((d) => d.name), categoryRatingData.map((d) => d.rating), '#5c7f49', {
+    decimals: 1,
+    extra: categoryRatingData.map((d) => d.raw_rating),
+    extraLabel: '% avg share of league categories won',
+  });
+
   const wordData = ${escapeScript(JSON.stringify(wordLeaders))};
   horizontalBar('chart-words', wordData.map((d) => d.name), wordData.map((d) => d.total_words), '#8f5c85');
 
@@ -197,8 +218,11 @@ ${repeatSongsSection(repeatSongs)}
   const guessesData = ${escapeScript(JSON.stringify(correctGuesses))};
   horizontalBar('chart-guesses', guessesData.map((d) => d.name), guessesData.map((d) => d.correct_guesses), '#8f5c85');
 
+  const roundsMissedData = ${escapeScript(JSON.stringify(roundsMissed))};
+  horizontalBar('chart-rounds-missed', roundsMissedData.map((d) => d.name), roundsMissedData.map((d) => d.rounds_missed), '#5c86a3');
+
   const forfeitedData = ${escapeScript(JSON.stringify(votesForfeited))};
-  horizontalBar('chart-forfeited', forfeitedData.map((d) => d.name), forfeitedData.map((d) => d.forfeited_rounds), '#5c86a3');
+  horizontalBar('chart-forfeited', forfeitedData.map((d) => d.name), forfeitedData.map((d) => d.forfeited_votes), '#5c86a3');
 
   const artistData = ${escapeScript(JSON.stringify(topArtists))};
   horizontalBar('chart-artists', artistData.map((d) => d.artist), artistData.map((d) => d.submission_count), '#5c86a3');

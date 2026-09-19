@@ -18,6 +18,8 @@ import {
   getRepeatSongs,
   getCommentVerbosity,
   getPlayerRatings,
+  getCategoryRatings,
+  getRoundsMissed,
   getVotesForfeited,
   getCorrectGuesses,
 } from "./db.js";
@@ -68,6 +70,8 @@ export function createApp() {
       repeatSongs,
       commentVerbosity,
       playerRatings,
+      categoryRatings,
+      roundsMissed,
       votesForfeited,
       correctGuesses,
     ] = await Promise.all([
@@ -82,6 +86,8 @@ export function createApp() {
       getRepeatSongs(c.env.DB),
       getCommentVerbosity(c.env.DB),
       getPlayerRatings(c.env.DB),
+      getCategoryRatings(c.env.DB),
+      getRoundsMissed(c.env.DB),
       getVotesForfeited(c.env.DB),
       getCorrectGuesses(c.env.DB),
     ]);
@@ -98,6 +104,8 @@ export function createApp() {
         repeatSongs,
         commentVerbosity,
         playerRatings,
+        categoryRatings,
+        roundsMissed,
         votesForfeited,
         correctGuesses,
       })

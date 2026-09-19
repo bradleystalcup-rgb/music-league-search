@@ -413,6 +413,13 @@ export async function getPlayerRatings(db) {
     sharesByUser.get(row.user_id).shares.push(share);
   }
 
+  return normalizeRatings(sharesByUser);
+}
+
+// Shared by getPlayerRatings/getCategoryRatings: average each user's
+// per-league share percentages, then rescale so the highest average is
+// exactly 100 and everyone else is proportional to it.
+function normalizeRatings(sharesByUser) {
   const raw = [...sharesByUser.values()].map((u) => ({
     name: u.name,
     slug: u.slug,
@@ -425,13 +432,54 @@ export async function getPlayerRatings(db) {
     .sort((a, b) => b.rating - a.rating);
 }
 
+// Same idea as getPlayerRatings, but sharing categories won instead of
+// points earned: for each league someone plays in, what percentage of that
+// league's rounds did they win (ties count for everyone tied at the top)?
+// Average across every league played, rescale so the top player is 100.
+export async function getCategoryRatings(db) {
+  const { results: participation } = await db
+    .prepare(
+      `SELECT DISTINCT r.league_id, u.id AS user_id, u.name, u.slug
+       FROM submissions sub
+       JOIN rounds r ON r.id = sub.round_id
+       JOIN users u ON u.id = sub.submitter_id
+       WHERE ${EXCLUDE_DELETED}`
+    )
+    .all();
+
+  const { results: wins } = await db
+    .prepare(
+      `SELECT r.league_id, sub.submitter_id AS user_id, COUNT(DISTINCT sub.round_id) AS wins
+       FROM submissions sub
+       JOIN rounds r ON r.id = sub.round_id
+       WHERE sub.vote_total = (SELECT MAX(s2.vote_total) FROM submissions s2 WHERE s2.round_id = sub.round_id)
+       GROUP BY r.league_id, sub.submitter_id`
+    )
+    .all();
+  const winsByKey = new Map(wins.map((w) => [`${w.league_id}|${w.user_id}`, w.wins]));
+
+  const { results: leagueCategoryCounts } = await db.prepare(`SELECT league_id, COUNT(*) AS categories FROM rounds GROUP BY league_id`).all();
+  const categoriesByLeague = new Map(leagueCategoryCounts.map((l) => [l.league_id, l.categories]));
+
+  const sharesByUser = new Map();
+  for (const p of participation) {
+    const totalCategories = categoriesByLeague.get(p.league_id) || 0;
+    if (totalCategories === 0) continue;
+    const wonCategories = winsByKey.get(`${p.league_id}|${p.user_id}`) || 0;
+    const share = (wonCategories / totalCategories) * 100;
+    if (!sharesByUser.has(p.user_id)) sharesByUser.set(p.user_id, { name: p.name, slug: p.slug, shares: [] });
+    sharesByUser.get(p.user_id).shares.push(share);
+  }
+
+  return normalizeRatings(sharesByUser);
+}
+
 // Rounds where someone was a member of that round's league (per the
 // original competitors.csv roster, not just "ever submitted or voted") but
-// cast zero votes — a full no-show, which also means whoever they'd have
-// voted for never received those points. Grouped across every round a
-// member was eligible for, so a fully-engaged member still shows up as a
+// cast zero votes — a full no-show. Grouped across every round a member
+// was eligible for, so a fully-engaged member still shows up as a
 // legitimate 0 rather than being absent.
-export async function getVotesForfeited(db) {
+export async function getRoundsMissed(db) {
   const { results } = await db
     .prepare(
       `SELECT
@@ -443,13 +491,45 @@ export async function getVotesForfeited(db) {
              JOIN submissions sub ON sub.id = v.submission_id
              WHERE v.voter_id = lm.user_id AND sub.round_id = r.id
            ) THEN 1 ELSE 0 END
-         ) AS forfeited_rounds
+         ) AS rounds_missed
        FROM league_members lm
        JOIN rounds r ON r.league_id = lm.league_id
        JOIN users u ON u.id = lm.user_id
        WHERE ${EXCLUDE_DELETED}
        GROUP BY lm.user_id
-       ORDER BY forfeited_rounds DESC`
+       ORDER BY rounds_missed DESC`
+    )
+    .all();
+  return results;
+}
+
+// The flip side of rounds missed: how many points did *their own*
+// submission rack up in a round where they themselves didn't bother to
+// vote? A proxy for "took votes without reciprocating".
+export async function getVotesForfeited(db) {
+  // A plain WHERE NOT EXISTS(...) here would filter out (member, round) rows
+  // entirely for anyone who never missed a round, so they'd be absent from
+  // the GROUP BY rather than showing a real 0 — same bug class as
+  // getRoundsMissed avoids by putting the check in a CASE inside SUM
+  // instead of filtering rows before grouping.
+  const { results } = await db
+    .prepare(
+      `SELECT
+         u.name, u.slug,
+         COALESCE(SUM(
+           CASE WHEN NOT EXISTS (
+             SELECT 1 FROM votes v
+             JOIN submissions s2 ON s2.id = v.submission_id
+             WHERE v.voter_id = lm.user_id AND s2.round_id = r.id
+           ) THEN sub.vote_total ELSE 0 END
+         ), 0) AS forfeited_votes
+       FROM league_members lm
+       JOIN users u ON u.id = lm.user_id
+       JOIN rounds r ON r.league_id = lm.league_id
+       LEFT JOIN submissions sub ON sub.round_id = r.id AND sub.submitter_id = lm.user_id
+       WHERE ${EXCLUDE_DELETED}
+       GROUP BY lm.user_id
+       ORDER BY forfeited_votes DESC`
     )
     .all();
   return results;
