@@ -1,7 +1,17 @@
 import { layout, escapeHtml } from "./layout.js";
 import { submissionTable, voteClass } from "./submission-table.js";
 
-export function statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSongs, repeatSongs }) {
+export function statsPage({
+  stats,
+  pointsLeaders,
+  wordLeaders,
+  categoryWinLeaders,
+  topArtists,
+  topSongs,
+  worstSongs,
+  leagueStandings,
+  repeatSongs,
+}) {
   const statCards = [
     { label: "Leagues", value: stats.leagues },
     { label: "Categories", value: stats.rounds },
@@ -30,6 +40,14 @@ export function statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSo
 </section>
 <div class="row row-cols-2 row-cols-md-3 g-3 stat-row">${statCards}</div>
 
+${leagueStandingsSection(leagueStandings)}
+
+<section class="chart-section">
+  <h2>Category wins</h2>
+  <p class="lede">Rounds won per person (ties count as a win for everyone tied at the top), across every league.</p>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-wins"></canvas></div></div>
+</section>
+
 <section class="chart-section">
   <h2>Most points earned (lifetime)</h2>
   <p class="lede">Total vote points a person's submissions have racked up, across every league.</p>
@@ -53,6 +71,12 @@ ${repeatSongsSection(repeatSongs)}
 <section>
   <h2>Top songs of all time</h2>
   ${submissionTable(topSongs)}
+</section>
+
+<section>
+  <h2>Rock bottom</h2>
+  <p class="lede">The lowest-scoring submissions in archive history.</p>
+  ${submissionTable(worstSongs)}
 </section>
 
 <script src="/vendor/chartjs/chart.umd.min.js"></script>
@@ -88,6 +112,9 @@ ${repeatSongsSection(repeatSongs)}
     });
   }
 
+  const winsData = ${escapeScript(JSON.stringify(categoryWinLeaders))};
+  horizontalBar('chart-wins', winsData.map((d) => d.name), winsData.map((d) => d.wins), '#476c87');
+
   const pointsData = ${escapeScript(JSON.stringify(pointsLeaders))};
   horizontalBar('chart-points', pointsData.map((d) => d.name), pointsData.map((d) => d.total_points), '#5c7f49');
 
@@ -106,6 +133,38 @@ ${repeatSongsSection(repeatSongs)}
 // inline <script> block when the JSON is embedded directly in the page.
 function escapeScript(json) {
   return json.replace(/</g, "\\u003c");
+}
+
+function leagueStandingsSection(leagueStandings) {
+  if (!leagueStandings || leagueStandings.length === 0) return "";
+
+  const rows = leagueStandings
+    .map(
+      (l) => `<tr>
+        <td class="repeat-song-title"><a href="/league/${l.id}">${escapeHtml(l.name)}</a></td>
+        <td>${standingCell(l.first)}</td>
+        <td>${standingCell(l.second)}</td>
+        <td>${standingCell(l.third)}</td>
+        <td>${standingCell(l.last)}</td>
+      </tr>`
+    )
+    .join("");
+
+  return `<section class="chart-section">
+    <h2>League champion history</h2>
+    <p class="lede">Standings by total points earned across each league's rounds. Last place only shown for leagues with more than three players.</p>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle submissions">
+        <thead><tr><th>League</th><th>&#129351; 1st</th><th>&#129352; 2nd</th><th>&#129353; 3rd</th><th>Last</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </section>`;
+}
+
+function standingCell(entry) {
+  if (!entry) return `<span class="muted">&mdash;</span>`;
+  return `<a href="/user/${encodeURIComponent(entry.slug)}">${escapeHtml(entry.name)}</a> <span class="muted">(${entry.total_points})</span>`;
 }
 
 function repeatSongsSection(repeatSongs) {

@@ -251,6 +251,35 @@ export async function getTopSongs(db, { limit = 10 } = {}) {
   return attachVotes(db, results);
 }
 
+export async function getWorstSongs(db, { limit = 10 } = {}) {
+  const { results } = await db
+    .prepare(
+      `${SUBMISSION_SELECT} ORDER BY sub.vote_total ASC, sub.created_at ASC LIMIT ?`
+    )
+    .bind(limit)
+    .all();
+  return attachVotes(db, results);
+}
+
+// Rounds won per user (ties count as a win for everyone tied at the top),
+// across every league — same definition as the categories_won fun fact on
+// user pages, just ranked across all users instead of scoped to one.
+export async function getCategoryWinsLeaderboard(db, { limit = 10 } = {}) {
+  const { results } = await db
+    .prepare(
+      `SELECT u.name, u.slug, COUNT(DISTINCT sub.round_id) AS wins
+       FROM submissions sub
+       JOIN users u ON u.id = sub.submitter_id
+       WHERE sub.vote_total = (SELECT MAX(s2.vote_total) FROM submissions s2 WHERE s2.round_id = sub.round_id)
+       GROUP BY u.id
+       ORDER BY wins DESC
+       LIMIT ?`
+    )
+    .bind(limit)
+    .all();
+  return results;
+}
+
 export async function getTopArtists(db, { limit = 10 } = {}) {
   const { results } = await db
     .prepare(
@@ -263,6 +292,41 @@ export async function getTopArtists(db, { limit = 10 } = {}) {
     .bind(limit)
     .all();
   return results;
+}
+
+// Per-league standings: every participant's total points (sum of their
+// submissions' vote totals in that league), ranked highest first, so the
+// page can show 1st/2nd/3rd and last place for each league.
+export async function getLeagueStandings(db) {
+  const { results: leagues } = await db.prepare("SELECT id, name FROM leagues ORDER BY started_at ASC").all();
+
+  const { results: standings } = await db
+    .prepare(
+      `SELECT r.league_id, u.name, u.slug, SUM(sub.vote_total) AS total_points
+       FROM submissions sub
+       JOIN rounds r ON r.id = sub.round_id
+       JOIN users u ON u.id = sub.submitter_id
+       GROUP BY r.league_id, u.id
+       ORDER BY r.league_id, total_points DESC, u.name ASC`
+    )
+    .all();
+
+  const byLeague = new Map();
+  for (const row of standings) {
+    if (!byLeague.has(row.league_id)) byLeague.set(row.league_id, []);
+    byLeague.get(row.league_id).push(row);
+  }
+
+  return leagues.map((l) => {
+    const ranked = byLeague.get(l.id) || [];
+    return {
+      ...l,
+      first: ranked[0] || null,
+      second: ranked[1] || null,
+      third: ranked[2] || null,
+      last: ranked.length > 3 ? ranked[ranked.length - 1] : null,
+    };
+  });
 }
 
 // Songs submitted more than once, each with every occurrence in
