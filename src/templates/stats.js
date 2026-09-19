@@ -102,7 +102,7 @@ ${leagueStandingsSection(leagueStandings)}
 
 <section class="chart-section">
   <h3>Correct guesses</h3>
-  <p class="lede">A vote comment that names the actual submitter counts as calling it. Approximate &mdash; stylized usernames people don't spell out mid-sentence will undercount.</p>
+  <p class="lede">A vote comment that names the actual submitter counts as calling it.</p>
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-guesses"></canvas></div></div>
 </section>
 
@@ -110,7 +110,6 @@ ${leagueStandingsSection(leagueStandings)}
 
 <section class="chart-section">
   <h3>Rounds missed</h3>
-  <p class="lede">Rounds where someone was in the league but cast zero votes &mdash; a full no-show.</p>
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-rounds-missed"></canvas></div></div>
 </section>
 
