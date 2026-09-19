@@ -272,9 +272,19 @@ h1, h2, h3 {
   padding: 0;
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--size-3);
   align-items: start;
+}
+
+/* An explicit breakpoint instead of repeat(auto-fit, minmax(...)) — Firefox
+   sizes auto-fit/fr tracks inconsistently versus Chromium when the grid
+   container's own width comes from a max-width (not an explicit width),
+   which left cards stuck at a fraction of the available width in Firefox. */
+@media (min-width: 780px) {
+  .league-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* A lone card left over in the last row (odd count, 2-column grid) spans
