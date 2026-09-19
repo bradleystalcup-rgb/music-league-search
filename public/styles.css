@@ -277,7 +277,14 @@ h1, h2, h3 {
   align-items: start;
 }
 
+/* A lone card left over in the last row (odd count, 2-column grid) spans
+   both columns instead of sitting half-width next to empty space. */
+.league-list > .league-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .league-card {
+  display: block;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-3);
