@@ -9,6 +9,7 @@
     "dev": "wrangler pages dev public",
     "deploy": "wrangler pages deploy public",
     "build:seed": "node seed/build-seed.mjs",
+    "sync:vendor": "node scripts/sync-vendor.mjs",
     "db:migrate:local": "wrangler d1 execute musicleague-db --local --file=migrations/0001_init.sql",
     "db:migrate:remote": "wrangler d1 execute musicleague-db --remote --file=migrations/0001_init.sql",
     "db:seed:local": "wrangler d1 execute musicleague-db --local --file=seed/seed.sql",
@@ -18,6 +19,7 @@
     "hono": "^4.6.14"
   },
   "devDependencies": {
+    "open-props": "^1.7.23",
     "wrangler": "^3.90.0"
   }
 }

@@ -1,12 +1,14 @@
 import { layout, searchBar } from "./layout.js";
 
 export function homePage({ stats, leagues }) {
-  const leagueList = leagues
+  const leagueCards = leagues
     .map(
-      (l) =>
-        `<li><strong>${l.name}</strong> — ${l.rounds.length} categories: ${l.rounds
-          .map((r) => `<a href="/category/${r.id}">${r.name}</a>`)
-          .join(", ")}</li>`
+      (l) => `<li class="league-card">
+        <h3>${l.name}</h3>
+        <div class="chip-row">
+          ${l.rounds.map((r) => `<a class="chip" href="/category/${r.id}">${r.name}</a>`).join("")}
+        </div>
+      </li>`
     )
     .join("\n");
 
@@ -19,7 +21,7 @@ export function homePage({ stats, leagues }) {
 <section class="leagues">
   <h2>Leagues</h2>
   <ul class="league-list">
-    ${leagueList}
+    ${leagueCards}
   </ul>
 </section>`;
 

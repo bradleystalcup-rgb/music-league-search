@@ -1,5 +1,5 @@
 {
   "version": 1,
   "include": ["/*"],
-  "exclude": ["/styles.css", "/favicon.ico"]
+  "exclude": ["/styles.css", "/favicon.ico", "/vendor/*"]
 }

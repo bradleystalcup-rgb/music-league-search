@@ -30,7 +30,7 @@ export function submissionTable(submissions, { hide = [] } = {}) {
         submitter: s.user_slug
           ? `<a href="/user/${encodeURIComponent(s.user_slug)}">${escapeHtml(s.user_name)}</a>`
           : `<span class="muted">unknown</span>`,
-        votes: `<span class="vote-total">${s.vote_total}</span>`,
+        votes: `<span class="vote-total ${voteClass(s.vote_total)}">${s.vote_total}</span>`,
       };
       return `<tr>${cols.map((c) => `<td data-label="${c.label}">${cells[c.key]}</td>`).join("")}</tr>`;
     })
@@ -40,6 +40,12 @@ export function submissionTable(submissions, { hide = [] } = {}) {
     <thead><tr>${cols.map((c) => `<th>${c.label}</th>`).join("")}</tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
+}
+
+function voteClass(total) {
+  if (total > 0) return "vote-total--positive";
+  if (total < 0) return "vote-total--negative";
+  return "vote-total--zero";
 }
 
 function spotifyId(uri) {
