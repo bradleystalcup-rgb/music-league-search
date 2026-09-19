@@ -290,6 +290,16 @@ h1, h2, h3 {
   color: var(--brand-700);
 }
 
+.league-card-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.league-card-title-link:hover {
+  color: var(--link);
+  text-decoration: underline;
+}
+
 /* A lone card left over in the last row (odd league count) spans the full
    row instead of sitting half-width next to empty space. Bootstrap's
    row-cols-md-2 sizes each .col to 50% via flexbox, so this just widens

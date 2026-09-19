@@ -5,6 +5,7 @@ import {
   getArtistBySlug,
   getUserBySlug,
   getRoundById,
+  getLeagueById,
   listLeaguesWithRounds,
   getStats,
   getPointsLeaderboard,
@@ -17,6 +18,7 @@ import { searchPage } from "./templates/search.js";
 import { artistPage } from "./templates/artist.js";
 import { userPage } from "./templates/user.js";
 import { categoryPage } from "./templates/category.js";
+import { leaguePage } from "./templates/league.js";
 import { statsPage } from "./templates/stats.js";
 
 export function createApp() {
@@ -54,6 +56,14 @@ export function createApp() {
       getTopSongs(c.env.DB),
     ]);
     return c.html(statsPage({ stats, pointsLeaders, wordLeaders, topArtists, topSongs }));
+  });
+
+  app.get("/league/:id", async (c) => {
+    const id = Number(c.req.param("id"));
+    if (!Number.isInteger(id)) return c.notFound();
+    const league = await getLeagueById(c.env.DB, id);
+    if (!league) return c.notFound();
+    return c.html(leaguePage({ league, submissions: league.submissions }));
   });
 
   app.get("/category/:id", async (c) => {

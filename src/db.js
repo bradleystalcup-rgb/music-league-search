@@ -151,6 +151,23 @@ export async function getRoundById(db, id) {
   return { ...round, submissions: await attachVotes(db, submissions) };
 }
 
+export async function getLeagueById(db, id) {
+  const league = await db.prepare("SELECT id, name, started_at FROM leagues WHERE id = ?").bind(id).first();
+  if (!league) return null;
+
+  const { results: rounds } = await db
+    .prepare("SELECT id, name FROM rounds WHERE league_id = ? ORDER BY created_at ASC")
+    .bind(id)
+    .all();
+
+  const { results: submissions } = await db
+    .prepare(`${SUBMISSION_SELECT} WHERE league.id = ? ORDER BY sub.vote_total DESC, sub.created_at ASC`)
+    .bind(id)
+    .all();
+
+  return { ...league, rounds, submissions: await attachVotes(db, submissions) };
+}
+
 export async function listLeaguesWithRounds(db) {
   const { results: leagues } = await db.prepare("SELECT id, name, started_at FROM leagues ORDER BY started_at ASC").all();
   const { results: rounds } = await db

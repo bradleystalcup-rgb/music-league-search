@@ -1,4 +1,4 @@
-import { layout, searchBar } from "./layout.js";
+import { layout, searchBar, escapeHtml } from "./layout.js";
 
 export function homePage({ stats, leagues }) {
   const leagueCards = leagues
@@ -6,9 +6,9 @@ export function homePage({ stats, leagues }) {
       (l) => `<div class="col league-col">
         <div class="card league-card h-100">
           <div class="card-body">
-            <h3 class="card-title h5">${l.name}</h3>
+            <h3 class="card-title h5"><a href="/league/${l.id}" class="league-card-title-link">${escapeHtml(l.name)}</a></h3>
             <div class="chip-row">
-              ${l.rounds.map((r) => `<a class="chip" href="/category/${r.id}">${r.name}</a>`).join("")}
+              ${l.rounds.map((r) => `<a class="chip" href="/category/${r.id}">${escapeHtml(r.name)}</a>`).join("")}
             </div>
           </div>
         </div>
