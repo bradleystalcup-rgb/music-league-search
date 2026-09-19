@@ -15,9 +15,9 @@ export function layout({ title, body }) {
 <body>
 <header class="site-header">
   <div class="container d-flex align-items-center justify-content-between py-3">
-    <a class="brand" href="/">🎵 Friends in the Bend Music League</a>
+    <a class="brand" href="/">Friends in the Bend Music League</a>
     <nav class="site-nav">
-      <a href="/stats" class="btn btn-primary btn-sm">📊 Stats</a>
+      <a href="/stats" class="btn btn-primary btn-sm" aria-label="Stats" title="Stats">📊</a>
     </nav>
   </div>
 </header>

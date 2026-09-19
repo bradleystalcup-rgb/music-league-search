@@ -116,10 +116,17 @@ body {
    (e.g. .card sets its own --bs-card-box-shadow), so retheming them means
    overriding the component rules directly rather than just the root
    --bs-primary/--bs-card-* tokens, which several components don't actually
-   read from. */
+   read from. Font-family is the same story: .btn's own --bs-btn-font-family
+   is empty by default, and native form controls (button/input/select) don't
+   reliably inherit body's font either, so state it directly everywhere
+   rather than trusting inheritance or Bootstrap's variable indirection. */
+
+body, .btn, .form-control, .form-select, .card, .badge, .table,
+input, button, select, textarea {
+  font-family: "Inter", system-ui, sans-serif;
+}
 
 .btn-primary {
-  --bs-btn-font-family: "Inter", system-ui, sans-serif;
   --bs-btn-color: #fff;
   --bs-btn-bg: var(--brand-600);
   --bs-btn-border-color: var(--brand-600);
@@ -170,15 +177,6 @@ body {
   letter-spacing: -0.01em;
 }
 
-.brand::before {
-  content: "";
-  display: inline-block;
-  width: 0.6em;
-  height: 0.6em;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--brand-500), var(--accent-500) 60%, var(--secondary-500));
-}
-
 .hero {
   text-align: center;
   padding: var(--size-6) 0 var(--size-8);
@@ -208,12 +206,31 @@ h1, h2, h3 {
   margin: 0 auto;
   box-shadow: var(--shadow-3);
   border-radius: var(--radius-3);
-  overflow: hidden;
+}
+
+/* Matching border-radius on the input/button themselves (rather than
+   clipping square corners with overflow:hidden on the wrapper) so the
+   focus ring drawn on the input isn't cut off where it meets the wrapper's
+   rounded corner. */
+.search-bar .form-control,
+.search-bar .btn {
+  border-radius: var(--radius-3);
+}
+
+.search-bar .form-control {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.search-bar .btn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .search-bar .form-control:focus {
   box-shadow: 0 0 0 3px var(--accent-100);
   border-color: var(--accent-300);
+  z-index: 3;
 }
 
 /* Fun-fact stat cards (user/stats pages) */
