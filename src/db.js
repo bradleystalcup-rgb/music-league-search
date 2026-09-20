@@ -551,19 +551,23 @@ const NAME_ALIASES = {
   SamRobertsND: ["Sammy"],
   "Spicey Riche": ["Richard"],
   Laur: ["Lauren"],
+  "Edward James": ["Eddie"],
 };
 
 // "Correct guesses": a vote comment that mentions the actual submitter's
 // name (their stored name, a known alias, or — for a two-word name — just
 // their first name) counts as correctly guessing whose pick it was — Music
 // League submissions are anonymous until the round ends, so this is a
-// decent proxy for "called it".
+// decent proxy for "called it". Returns both directions: who does the
+// guessing (`guessers`) and who gets guessed, i.e. whose submissions are
+// most identifiable (`mostGuessed`).
 export async function getCorrectGuesses(db) {
   const { results: allUsers } = await db.prepare(`SELECT u.name, u.slug FROM users u WHERE ${EXCLUDE_DELETED}`).all();
 
   const { results: candidates } = await db
     .prepare(
-      `SELECT v.comment, u_voter.name AS voter_name, u_voter.slug AS voter_slug, u_sub.name AS submitter_name
+      `SELECT v.comment, u_voter.name AS voter_name, u_voter.slug AS voter_slug,
+              u_sub.name AS submitter_name, u_sub.slug AS submitter_slug
        FROM votes v
        JOIN submissions sub ON sub.id = v.submission_id
        JOIN users u_sub ON u_sub.id = sub.submitter_id
@@ -575,13 +579,18 @@ export async function getCorrectGuesses(db) {
     .all();
 
   const guessesBySlug = new Map(allUsers.map((u) => [u.slug, { name: u.name, slug: u.slug, correct_guesses: 0 }]));
+  const guessedBySlug = new Map(allUsers.map((u) => [u.slug, { name: u.name, slug: u.slug, times_guessed: 0 }]));
   for (const row of candidates) {
     if (nameMentioned(row.comment, row.submitter_name)) {
       guessesBySlug.get(row.voter_slug).correct_guesses += 1;
+      guessedBySlug.get(row.submitter_slug).times_guessed += 1;
     }
   }
 
-  return [...guessesBySlug.values()].sort((a, b) => b.correct_guesses - a.correct_guesses);
+  return {
+    guessers: [...guessesBySlug.values()].sort((a, b) => b.correct_guesses - a.correct_guesses),
+    mostGuessed: [...guessedBySlug.values()].sort((a, b) => b.times_guessed - a.times_guessed),
+  };
 }
 
 function nameMentioned(text, fullName) {
@@ -676,7 +685,8 @@ export async function getStatsPagePayload(db) {
     categoryRatings,
     roundsMissed: votingEngagement.roundsMissed,
     votesForfeited: votingEngagement.votesForfeited,
-    correctGuesses,
+    correctGuesses: correctGuesses.guessers,
+    mostGuessed: correctGuesses.mostGuessed,
   };
 
   await db

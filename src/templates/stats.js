@@ -17,6 +17,7 @@ export function statsPage({
   roundsMissed,
   votesForfeited,
   correctGuesses,
+  mostGuessed,
 }) {
   const statCards = [
     { label: "Leagues", value: stats.leagues },
@@ -104,6 +105,12 @@ ${leagueStandingsSection(leagueStandings)}
   <h3>Correct guesses</h3>
   <p class="lede">A vote comment that names the actual submitter counts as calling it.</p>
   <div class="card chart-wrap"><div class="card-body"><canvas id="chart-guesses"></canvas></div></div>
+</section>
+
+<section class="chart-section">
+  <h3>Most guessed</h3>
+  <p class="lede">The inverse &mdash; how often a person's own submissions got correctly called out by name.</p>
+  <div class="card chart-wrap"><div class="card-body"><canvas id="chart-most-guessed"></canvas></div></div>
 </section>
 
 <h2 class="stats-group-title">Other stats</h2>
@@ -216,6 +223,9 @@ ${repeatSongsSection(repeatSongs)}
 
   const guessesData = ${escapeScript(JSON.stringify(correctGuesses))};
   horizontalBar('chart-guesses', guessesData.map((d) => d.name), guessesData.map((d) => d.correct_guesses), '#8f5c85');
+
+  const mostGuessedData = ${escapeScript(JSON.stringify(mostGuessed))};
+  horizontalBar('chart-most-guessed', mostGuessedData.map((d) => d.name), mostGuessedData.map((d) => d.times_guessed), '#8f5c85');
 
   const roundsMissedData = ${escapeScript(JSON.stringify(roundsMissed))};
   horizontalBar('chart-rounds-missed', roundsMissedData.map((d) => d.name), roundsMissedData.map((d) => d.rounds_missed), '#5c86a3');
