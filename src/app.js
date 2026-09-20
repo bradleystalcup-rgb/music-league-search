@@ -8,20 +8,7 @@ import {
   getLeagueById,
   listLeaguesWithRounds,
   getStats,
-  getPointsLeaderboard,
-  getWordCountLeaderboard,
-  getTopArtists,
-  getTopSongs,
-  getWorstSongs,
-  getCategoryWinsLeaderboard,
-  getLeagueStandings,
-  getRepeatSongs,
-  getCommentVerbosity,
-  getPlayerRatings,
-  getCategoryRatings,
-  getRoundsMissed,
-  getVotesForfeited,
-  getCorrectGuesses,
+  getStatsPagePayload,
 } from "./db.js";
 import { homePage } from "./templates/home.js";
 import { searchPage } from "./templates/search.js";
@@ -58,58 +45,8 @@ export function createApp() {
   });
 
   app.get("/stats", async (c) => {
-    const [
-      stats,
-      pointsLeaders,
-      wordLeaders,
-      categoryWinLeaders,
-      topArtists,
-      topSongs,
-      worstSongs,
-      leagueStandings,
-      repeatSongs,
-      commentVerbosity,
-      playerRatings,
-      categoryRatings,
-      roundsMissed,
-      votesForfeited,
-      correctGuesses,
-    ] = await Promise.all([
-      getStats(c.env.DB),
-      getPointsLeaderboard(c.env.DB),
-      getWordCountLeaderboard(c.env.DB),
-      getCategoryWinsLeaderboard(c.env.DB),
-      getTopArtists(c.env.DB),
-      getTopSongs(c.env.DB),
-      getWorstSongs(c.env.DB),
-      getLeagueStandings(c.env.DB),
-      getRepeatSongs(c.env.DB),
-      getCommentVerbosity(c.env.DB),
-      getPlayerRatings(c.env.DB),
-      getCategoryRatings(c.env.DB),
-      getRoundsMissed(c.env.DB),
-      getVotesForfeited(c.env.DB),
-      getCorrectGuesses(c.env.DB),
-    ]);
-    return c.html(
-      statsPage({
-        stats,
-        pointsLeaders,
-        wordLeaders,
-        categoryWinLeaders,
-        topArtists,
-        topSongs,
-        worstSongs,
-        leagueStandings,
-        repeatSongs,
-        commentVerbosity,
-        playerRatings,
-        categoryRatings,
-        roundsMissed,
-        votesForfeited,
-        correctGuesses,
-      })
-    );
+    const payload = await getStatsPagePayload(c.env.DB);
+    return c.html(statsPage(payload));
   });
 
   app.get("/league/:id", async (c) => {

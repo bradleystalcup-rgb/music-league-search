@@ -474,65 +474,60 @@ export async function getCategoryRatings(db) {
   return normalizeRatings(sharesByUser);
 }
 
-// Rounds where someone was a member of that round's league (per the
-// original competitors.csv roster, not just "ever submitted or voted") but
-// cast zero votes — a full no-show. Grouped across every round a member
-// was eligible for, so a fully-engaged member still shows up as a
-// legitimate 0 rather than being absent.
-export async function getRoundsMissed(db) {
-  const { results } = await db
-    .prepare(
-      `SELECT
-         u.name, u.slug,
-         COUNT(*) AS eligible_rounds,
-         SUM(
-           CASE WHEN NOT EXISTS (
-             SELECT 1 FROM votes v
-             JOIN submissions sub ON sub.id = v.submission_id
-             WHERE v.voter_id = lm.user_id AND sub.round_id = r.id
-           ) THEN 1 ELSE 0 END
-         ) AS rounds_missed
-       FROM league_members lm
-       JOIN rounds r ON r.league_id = lm.league_id
-       JOIN users u ON u.id = lm.user_id
-       WHERE ${EXCLUDE_DELETED}
-       GROUP BY lm.user_id
-       ORDER BY rounds_missed DESC`
-    )
-    .all();
-  return results;
-}
+// Rounds missed (a league member cast zero votes) and votes forfeited (what
+// their own submission earned in a round they skipped voting in). Computed
+// together from a handful of small, cheap queries plus plain JS — an
+// earlier version used a NOT EXISTS(...) correlated subquery re-evaluated
+// once per (member, round) row, which D1 counts as a full sub-scan every
+// time: with ~1,000 outer rows each re-scanning a chunk of the votes table,
+// a handful of /stats page loads burned through the entire daily 5M-row
+// free-tier read quota. This version reads votes/submissions/league_members
+// once each (a few thousand rows total, not >1M) and joins them in memory.
+export async function getVotingEngagement(db) {
+  const [{ results: votedPairs }, { results: members }, { results: rounds }, { results: submissions }] = await Promise.all([
+    db.prepare(`SELECT DISTINCT v.voter_id, sub.round_id FROM votes v JOIN submissions sub ON sub.id = v.submission_id`).all(),
+    db.prepare(`SELECT lm.league_id, lm.user_id, u.name, u.slug FROM league_members lm JOIN users u ON u.id = lm.user_id WHERE ${EXCLUDE_DELETED}`).all(),
+    db.prepare(`SELECT id, league_id FROM rounds`).all(),
+    db.prepare(`SELECT round_id, submitter_id, vote_total FROM submissions WHERE submitter_id IS NOT NULL`).all(),
+  ]);
 
-// The flip side of rounds missed: how many points did *their own*
-// submission rack up in a round where they themselves didn't bother to
-// vote? A proxy for "took votes without reciprocating".
-export async function getVotesForfeited(db) {
-  // A plain WHERE NOT EXISTS(...) here would filter out (member, round) rows
-  // entirely for anyone who never missed a round, so they'd be absent from
-  // the GROUP BY rather than showing a real 0 — same bug class as
-  // getRoundsMissed avoids by putting the check in a CASE inside SUM
-  // instead of filtering rows before grouping.
-  const { results } = await db
-    .prepare(
-      `SELECT
-         u.name, u.slug,
-         COALESCE(SUM(
-           CASE WHEN NOT EXISTS (
-             SELECT 1 FROM votes v
-             JOIN submissions s2 ON s2.id = v.submission_id
-             WHERE v.voter_id = lm.user_id AND s2.round_id = r.id
-           ) THEN sub.vote_total ELSE 0 END
-         ), 0) AS forfeited_votes
-       FROM league_members lm
-       JOIN users u ON u.id = lm.user_id
-       JOIN rounds r ON r.league_id = lm.league_id
-       LEFT JOIN submissions sub ON sub.round_id = r.id AND sub.submitter_id = lm.user_id
-       WHERE ${EXCLUDE_DELETED}
-       GROUP BY lm.user_id
-       ORDER BY forfeited_votes DESC`
-    )
-    .all();
-  return results;
+  const votedSet = new Set(votedPairs.map((v) => `${v.voter_id}|${v.round_id}`));
+  const roundsByLeague = new Map();
+  for (const r of rounds) {
+    if (!roundsByLeague.has(r.league_id)) roundsByLeague.set(r.league_id, []);
+    roundsByLeague.get(r.league_id).push(r.id);
+  }
+  const pointsByRoundSubmitter = new Map();
+  for (const s of submissions) {
+    const key = `${s.round_id}|${s.submitter_id}`;
+    pointsByRoundSubmitter.set(key, (pointsByRoundSubmitter.get(key) || 0) + s.vote_total);
+  }
+
+  // A person is a member of multiple leagues (one league_members row each),
+  // so accumulate per user_id across all of them rather than one entry per
+  // membership.
+  const byUser = new Map();
+  for (const m of members) {
+    if (!byUser.has(m.user_id)) byUser.set(m.user_id, { name: m.name, slug: m.slug, eligibleRounds: 0, missed: 0, forfeited: 0 });
+    const acc = byUser.get(m.user_id);
+
+    const leagueRounds = roundsByLeague.get(m.league_id) || [];
+    acc.eligibleRounds += leagueRounds.length;
+    for (const roundId of leagueRounds) {
+      if (!votedSet.has(`${m.user_id}|${roundId}`)) {
+        acc.missed += 1;
+        acc.forfeited += pointsByRoundSubmitter.get(`${roundId}|${m.user_id}`) || 0;
+      }
+    }
+  }
+
+  const roundsMissed = [...byUser.values()]
+    .map((u) => ({ name: u.name, slug: u.slug, eligible_rounds: u.eligibleRounds, rounds_missed: u.missed }))
+    .sort((a, b) => b.rounds_missed - a.rounds_missed);
+  const votesForfeited = [...byUser.values()]
+    .map((u) => ({ name: u.name, slug: u.slug, forfeited_votes: u.forfeited }))
+    .sort((a, b) => b.forfeited_votes - a.forfeited_votes);
+  return { roundsMissed, votesForfeited };
 }
 
 // "Correct guesses": a vote comment that mentions the actual submitter's
@@ -598,4 +593,74 @@ export async function getRepeatSongs(db) {
     bySong.get(row.song_id).occurrences.push(row);
   }
   return [...bySong.values()];
+}
+
+// The /stats page runs ~15 queries to assemble its payload. Since that data
+// only ever changes when the archive is reseeded, computing it on every
+// request wastes D1 reads for no benefit — cache the whole assembled
+// payload as one JSON blob and only recompute when the cache is empty.
+// seed/build-seed.mjs clears this table on every reseed, so it can never
+// go stale versus the data it's derived from.
+const STATS_CACHE_KEY = "stats_page";
+
+export async function getStatsPagePayload(db) {
+  const cached = await db.prepare(`SELECT value FROM stats_cache WHERE key = ?`).bind(STATS_CACHE_KEY).first();
+  if (cached) return JSON.parse(cached.value);
+
+  const [
+    stats,
+    pointsLeaders,
+    wordLeaders,
+    categoryWinLeaders,
+    topArtists,
+    topSongs,
+    worstSongs,
+    leagueStandings,
+    repeatSongs,
+    commentVerbosity,
+    playerRatings,
+    categoryRatings,
+    votingEngagement,
+    correctGuesses,
+  ] = await Promise.all([
+    getStats(db),
+    getPointsLeaderboard(db),
+    getWordCountLeaderboard(db),
+    getCategoryWinsLeaderboard(db),
+    getTopArtists(db),
+    getTopSongs(db),
+    getWorstSongs(db),
+    getLeagueStandings(db),
+    getRepeatSongs(db),
+    getCommentVerbosity(db),
+    getPlayerRatings(db),
+    getCategoryRatings(db),
+    getVotingEngagement(db),
+    getCorrectGuesses(db),
+  ]);
+
+  const payload = {
+    stats,
+    pointsLeaders,
+    wordLeaders,
+    categoryWinLeaders,
+    topArtists,
+    topSongs,
+    worstSongs,
+    leagueStandings,
+    repeatSongs,
+    commentVerbosity,
+    playerRatings,
+    categoryRatings,
+    roundsMissed: votingEngagement.roundsMissed,
+    votesForfeited: votingEngagement.votesForfeited,
+    correctGuesses,
+  };
+
+  await db
+    .prepare(`INSERT INTO stats_cache (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`)
+    .bind(STATS_CACHE_KEY, JSON.stringify(payload), new Date().toISOString())
+    .run();
+
+  return payload;
 }
