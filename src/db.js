@@ -207,6 +207,11 @@ const WORD_COUNT_SQL = `(LENGTH(comment) - LENGTH(REPLACE(comment, ' ', '')) + 1
 // included, with no top-N cutoff.
 const EXCLUDE_DELETED = `u.name <> '[DELETED]'`;
 
+// Which submission(s) won each round: a flat GROUP BY computed once and
+// joined back, instead of a `vote_total = (SELECT MAX(...) WHERE round_id =
+// ...)` correlated subquery re-scanning submissions once per outer row.
+const ROUND_MAX_VOTES = `(SELECT round_id, MAX(vote_total) AS max_votes FROM submissions GROUP BY round_id)`;
+
 export async function getPointsLeaderboard(db) {
   const { results } = await db
     .prepare(
@@ -257,21 +262,25 @@ export async function getWordCountLeaderboard(db) {
 // words-per-comment ranking additionally requires 5+ comments so one long
 // comment from an infrequent voter can't top the list.
 export async function getCommentVerbosity(db, { minComments = 5 } = {}) {
+  // votes_cast used to be a correlated `(SELECT COUNT(*) FROM votes v2
+  // WHERE v2.voter_id = u.id)` re-run once per user — a flat GROUP BY reads
+  // the votes table once total instead of once per user.
   const { results } = await db
     .prepare(
       `SELECT
          u.name, u.slug,
-         (SELECT COUNT(*) FROM votes v2 WHERE v2.voter_id = u.id) AS votes_cast,
+         COALESCE(vc.votes_cast, 0) AS votes_cast,
          COALESCE(vw.words, 0) AS total_words,
          COALESCE(vw.comments, 0) AS comments_cast
        FROM users u
+       LEFT JOIN (SELECT voter_id AS uid, COUNT(*) AS votes_cast FROM votes GROUP BY voter_id) vc ON vc.uid = u.id
        LEFT JOIN (
          SELECT voter_id AS uid, SUM(${WORD_COUNT_SQL}) AS words, COUNT(*) AS comments
          FROM votes
          WHERE comment IS NOT NULL AND TRIM(comment) <> ''
          GROUP BY voter_id
        ) vw ON vw.uid = u.id
-       WHERE votes_cast > 0 AND ${EXCLUDE_DELETED}`
+       WHERE COALESCE(vc.votes_cast, 0) > 0 AND ${EXCLUDE_DELETED}`
     )
     .all();
 
@@ -326,7 +335,7 @@ export async function getCategoryWinsLeaderboard(db) {
        LEFT JOIN (
          SELECT sub.submitter_id AS uid, COUNT(DISTINCT sub.round_id) AS wins
          FROM submissions sub
-         WHERE sub.vote_total = (SELECT MAX(s2.vote_total) FROM submissions s2 WHERE s2.round_id = sub.round_id)
+         JOIN ${ROUND_MAX_VOTES} rm ON rm.round_id = sub.round_id AND sub.vote_total = rm.max_votes
          GROUP BY sub.submitter_id
        ) w ON w.uid = u.id
        WHERE ${EXCLUDE_DELETED}
@@ -452,7 +461,7 @@ export async function getCategoryRatings(db) {
       `SELECT r.league_id, sub.submitter_id AS user_id, COUNT(DISTINCT sub.round_id) AS wins
        FROM submissions sub
        JOIN rounds r ON r.id = sub.round_id
-       WHERE sub.vote_total = (SELECT MAX(s2.vote_total) FROM submissions s2 WHERE s2.round_id = sub.round_id)
+       JOIN ${ROUND_MAX_VOTES} rm ON rm.round_id = sub.round_id AND sub.vote_total = rm.max_votes
        GROUP BY r.league_id, sub.submitter_id`
     )
     .all();
