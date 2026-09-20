@@ -539,12 +539,25 @@ export async function getVotingEngagement(db) {
   return { roundsMissed, votesForfeited };
 }
 
+// Stylized usernames aren't what people actually type when guessing who
+// submitted a song — these are the real first names/nicknames the group
+// uses instead, so a comment naming the person still counts as a hit.
+// "Sammy" (not "Sam") for SamRobertsND specifically avoids colliding with
+// the unrelated real user "Sam Ary".
+const NAME_ALIASES = {
+  ared56: ["Alex"],
+  "fionmul": ["Fiona"],
+  "judd.baker": ["Judd"],
+  SamRobertsND: ["Sammy"],
+  "Spicey Riche": ["Richard"],
+  Laur: ["Lauren"],
+};
+
 // "Correct guesses": a vote comment that mentions the actual submitter's
-// name (or, for a two-word name, just their first name) counts as
-// correctly guessing whose pick it was — Music League submissions are
-// anonymous until the round ends, so this is a decent proxy for "called
-// it". Necessarily approximate: stylized usernames people don't spell out
-// mid-sentence (e.g. "SamRobertsND") will undercount.
+// name (their stored name, a known alias, or — for a two-word name — just
+// their first name) counts as correctly guessing whose pick it was — Music
+// League submissions are anonymous until the round ends, so this is a
+// decent proxy for "called it".
 export async function getCorrectGuesses(db) {
   const { results: allUsers } = await db.prepare(`SELECT u.name, u.slug FROM users u WHERE ${EXCLUDE_DELETED}`).all();
 
@@ -572,7 +585,7 @@ export async function getCorrectGuesses(db) {
 }
 
 function nameMentioned(text, fullName) {
-  const candidates = [fullName];
+  const candidates = [fullName, ...(NAME_ALIASES[fullName] || [])];
   const firstWord = fullName.split(/\s+/)[0];
   if (firstWord !== fullName && firstWord.length >= 3) candidates.push(firstWord);
 
